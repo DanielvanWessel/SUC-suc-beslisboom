@@ -675,21 +675,43 @@ function findings(it){
   if (m.inv && m.invShare >= 0.2) out.push({cat:'voorraad', text:`voorraad: ${pct(m.invShare, 0)} Inventory MISMATCH (${m.inv}/${m.fetched})`});
   if (m.cnt.verdacht){
     const ex = m.pairs.filter(p => p.k === 'verdacht')[0];
-    out.push({cat:'prijs-verdacht', text:`prijs: ${m.cnt.verdacht}× verdachte uitlezing, bijv. site ${eur(ex.shop)} vs Beslist ${eur(ex.bes)}${suspectHint(m.pairs) ? ' (' + suspectHint(m.pairs) + ')' : ''}`});
+    const h = suspectHint(m.pairs);
+    out.push({cat:'prijs-verdacht', text:`prijs: ${m.cnt.verdacht}× verdachte uitlezing, bijv. site ${eur(ex.shop)} vs Beslist ${eur(ex.bes)}${h ? ' (' + h.n + ')' : ''}`});
   }
   if (m.cnt.echt) out.push({cat:'prijs-echt', text:`prijs: ${m.cnt.echt}× echte afwijking, prijs excl. timing ${pct(m.rate)} op ${m.priced} prijzen`});
   if (m.tim >= 3) out.push({cat:'timing', text:`${m.tim}× timing (Beslist liep achter)`});
   if (m.n >= 10 && m.fetch < T.fetchOk) out.push({cat:'fetch', text:`fetch ${pct(m.fetch, 0)}: ${m.topErr}`});
   return out;
 }
+/* Conclusies na controle op de site. Eén conclusie per groep (g): een nieuwe vervangt de vorige uit dezelfde groep.
+   cats = bij welke bevindingen de knop wordt getoond. */
 const NOTE_PHRASES = [
-  'gecontroleerd: op de site op voorraad, Dataedis leest voorraad verkeerd',
-  'gecontroleerd: Dataedis scrapet de verkeerde prijs',
-  'Dataedis scrapet doorgestreepte/van-prijs',
-  'Dataedis scrapet stukprijs, shop verkoopt per doos/set',
-  'Dataedis negeert de variant in de URL',
-  'gecontroleerd: site wijkt echt af van feed'
+  {g:'voorraad', cats:['voorraad'], t:'gecontroleerd: op de site op voorraad, Dataedis leest voorraad verkeerd'},
+  {g:'voorraad', cats:['voorraad'], t:'gecontroleerd: ook op de site niet op voorraad'},
+  {g:'prijs', cats:['prijs-verdacht', 'prijs-echt'], t:'gecontroleerd: Dataedis scrapet de verkeerde prijs'},
+  {g:'prijs', cats:['prijs-verdacht', 'prijs-echt'], t:'gecontroleerd: Dataedis scrapet de doorgestreepte/van-prijs'},
+  {g:'prijs', cats:['prijs-verdacht'], t:'gecontroleerd: Dataedis scrapet de stukprijs, shop verkoopt per doos/set'},
+  {g:'prijs', cats:['prijs-verdacht', 'prijs-echt', 'variant'], t:'gecontroleerd: Dataedis negeert de variant in de URL'},
+  {g:'prijs', cats:['prijs-echt'], t:'gecontroleerd: site wijkt echt af van feed'}
 ];
+/* conclusies uit v1.1 (andere formulering), zodat die bij een nieuwe keuze ook vervangen worden */
+const OLD_PHRASES = {prijs:['Dataedis scrapet doorgestreepte/van-prijs', 'Dataedis scrapet stukprijs, shop verkoopt per doos/set', 'Dataedis negeert de variant in de URL']};
+function addNotePhrase(cur, text){
+  const ph = NOTE_PHRASES.find(p => p.t === text);
+  let parts = (cur || '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+  if (ph){
+    const same = NOTE_PHRASES.filter(p => p.g === ph.g).map(p => p.t).concat(OLD_PHRASES[ph.g] || []);
+    parts = parts.filter(s => !same.includes(s.replace(/[.\s]+$/, '')));
+  }
+  if (!parts.includes(text)) parts.push(text);
+  return parts.join('; ');
+}
+function notePhrases(it, note){
+  const cats = new Set(findings(it).map(f => f.cat));
+  if (it.ev.rule === 'N1') cats.add('variant');
+  const rel = NOTE_PHRASES.filter(p => p.cats.some(c => cats.has(c)));
+  return (rel.length ? rel : NOTE_PHRASES).filter(p => !note.includes(p.t));
+}
 /* welke bevinding de hoofdregel al dekt (die staat al in de note) */
 const RULE_CAT = {N3:'fetch', H3:'fetch', N4:'voorraad', N5:'prijs-verdacht', H2:'prijs-verdacht', N6:'timing', N7:'prijs-echt', H1:'prijs-echt', H8:'prijs-echt'};
 
@@ -724,16 +746,19 @@ function pattern(pairs){
   return {key:'verdacht', text:'Vooral verdachte uitlezingen', prio:''};
 }
 
+/* Patroon in de verdachte uitlezingen. t = uitleg met vraag (alleen in de app), n = kort en feitelijk (voor de note). */
 function suspectHint(pairs){
   const v = pairs.filter(p => p.k === 'verdacht' && p.shop > 0 && p.bes > 0);
-  if (!v.length) return '';
-  if (v.filter(p => p.shop <= 10 && p.bes >= 100).length / v.length >= 0.7) return 'Dataedis leest een onzinbedrag (€1–10) bij producten van honderden euro\'s';
+  if (!v.length) return null;
+  if (v.filter(p => p.shop <= 10 && p.bes >= 100).length / v.length >= 0.7)
+    return {t:'Dataedis leest een onzinbedrag (≤ €10) bij producten van honderden euro\'s', n:'onzinbedragen ≤ €10'};
   // constante factor = verpakkingsaantal (bijv. doos van 6): zelfde gehele factor, max 24, bij ≥ 70% van de verdachte afwijkingen
   const fac = {};
   v.forEach(p => { const r = p.bes / p.shop, k = Math.round(r); if (k >= 2 && k <= 24 && Math.abs(r - k) / k < 0.02) fac[k] = (fac[k] || 0) + 1; });
   const best = Object.entries(fac).sort((a, b) => b[1] - a[1])[0];
-  if (best && best[1] / v.length >= 0.7) return `constante factor ×${best[0]}: verkoopt de shop per doos/set? Dan leest Dataedis de stukprijs`;
-  return '';
+  if (best && best[1] / v.length >= 0.7)
+    return {t:`constante factor ×${best[0]}: verkoopt de shop per doos/set? Dan leest Dataedis de stukprijs`, n:`constante factor ×${best[0]}`};
+  return null;
 }
 
 function examples(m){
@@ -797,7 +822,7 @@ function ladder(shop, m){
   if (m.nonTim > 0 && m.cnt.verdacht / m.nonTim >= 0.5){
     const hint = suspectHint(m.pairs);
     H(`${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3`);
-    return {rule:'N5', to:NYR, note:`Verdachte uitlezing: ${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3${hint ? '; ' + hint : ''}`, why, flags, hint,
+    return {rule:'N5', to:NYR, note:`Verdachte uitlezing: ${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3${hint ? ', ' + hint.n : ''}`, why, flags, hint: hint && hint.t,
       check:'Vergelijk de prijs op de pagina met Beslist. Toont de site de Beslist-prijs (of verkoopt de shop per doos/set)? Dan leest Dataedis verkeerd: dit voorstel. Toont de site echt een andere prijs: kies Shop Issue.'};
   }
   P('uitlezing niet verdacht');
@@ -837,7 +862,7 @@ function recheck(shop, m, today){
     if (m.n >= 10 && m.fetch < T.fetchLow){ H(`fetch ${pct(m.fetch, 0)}`); return {rule:'H3', to:NYR, note:`Fetch ${pct(m.fetch, 0)} – ${m.topErr} (n=${m.n})`, why, flags}; }
     if (enough && m.nonTim >= 5 && (m.cnt.verdacht / m.nonTim >= 0.5 || m.ok === 0)){
       const hint = suspectHint(m.pairs); H(m.ok === 0 ? `0 van ${m.priced} prijzen goed` : `${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3`);
-      return {rule:'H2', to:NYR, note:`Uitleesfout: ${m.ok}/${m.priced} prijzen goed, ${m.cnt.verdacht} verdacht${hint ? '; ' + hint : ''}`, why, flags, hint,
+      return {rule:'H2', to:NYR, note:`Uitleesfout: ${m.ok}/${m.priced} prijzen goed, ${m.cnt.verdacht} verdacht${hint ? ', ' + hint.n : ''}`, why, flags, hint: hint && hint.t,
         check:'Open 2–3 producten: toont de site de Beslist-prijs? Dan leest Dataedis verkeerd (dit voorstel). Anders: kies Shop Issue.'};
     }
     if (enough && m.rate != null && m.rate <= T.rate){
@@ -1155,7 +1180,7 @@ function cardBody(it){
   if (ev.check) check += `<div class="check"><b>Controle:</b> ${esc(ev.check)}<label><input type="checkbox" data-act="checked" ${d.checked ? 'checked' : ''}> Ik heb dit gecontroleerd</label></div>`;
   const note = finalNote(it);
   const extra = findings(it).filter(f => f.cat !== RULE_CAT[ev.rule] && !note.includes(f.text));
-  const phrases = NOTE_PHRASES.filter(p => !note.includes(p));
+  const phrases = notePhrases(it, note).map(p => p.t);
   const edit = editable ? `<div class="edit">
       <label for="to_${it.id}">Status</label>
       <select id="to_${it.id}" data-act="to">${STATUSES.filter(s => s !== '(not set yet)').map(s => `<option ${s === to ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
@@ -1361,7 +1386,7 @@ function init(){
       case 'all': VIEW.open[id] = VIEW.open[id] === 'all' ? true : 'all'; break;
       case 'checked': d.checked = a.checked; break;
       case 'allinv': VIEW.open[id + ':inv'] = !VIEW.open[id + ':inv']; break;
-      case 'addnote': { const cur = finalNote(it); d.note = cur ? cur.replace(/[;.\s]+$/, '') + '; ' + a.dataset.text : a.dataset.text; break; }
+      case 'addnote': d.note = addNotePhrase(finalNote(it), a.dataset.text); break;
       case 'keep': d.keepNote = a.checked; break;
       default: return;
     }
