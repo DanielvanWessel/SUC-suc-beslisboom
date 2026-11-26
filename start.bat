@@ -4,7 +4,7 @@ title SUC-beslisboom
 rem Haalt de nieuwste versie van de app van GitHub en opent die in je standaardbrowser.
 rem Nodig: alleen Windows 10/11 (curl zit standaard in Windows). Geen git, Python of Node.
 
-set "REPO=DanielvanWessel/suc-beslisboom"
+set "REPO=DanielvanWessel/SUC-suc-beslisboom"
 set "BRANCH=main"
 set "DIR=%LOCALAPPDATA%\suc-beslisboom"
 if not exist "%DIR%" mkdir "%DIR%"
