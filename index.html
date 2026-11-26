@@ -253,7 +253,7 @@ pre.ticket{white-space:pre-wrap; background:var(--neutral-soft); border-radius:6
 
 <script>
 'use strict';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const SUC_URL = 'https://backendtools.aks.beslist.nl/sucreport';
 const LS_KEY = 'sucbb:v1';
 
@@ -413,7 +413,9 @@ function sucCollector(){
       var feed = (r.title.match(/MappedFeedline:\s*([^\n]*)/) || [])[1] || '';
       rows.push({pid: pid, ext: ext, cat: txt(c[2]), url: url, shop: money(txt(c[4])), bes: money(txt(c[5]).replace(/timing/i, '')),
         at: txt(c[6]), msg: msg, timing: r.classList.contains('wrongPriceDueToTiming') || /timing/i.test(txt(c[5])),
-        notFound: /not found/i.test(feed), feed: money(feed.split('(')[0])});
+        notFound: /not found/i.test(feed), feed: money(feed.split('(')[0]),
+        shopTxt: /Inventory/.test(msg) ? txt(c[4]) : undefined,
+        feedAvail: /Product Not Available/i.test(feed) ? false : /Product Available/i.test(feed) ? true : undefined});
     });
     var same = Object.keys(urls).filter(function(u){ return Object.keys(urls[u]).length >= 2; }).map(function(u){ return {url: u, exts: Object.keys(urls[u])}; });
     await closeModal(m);
@@ -426,7 +428,7 @@ function sucCollector(){
     days.forEach(function(d){ var c = s.days[d]; if (c) { sum.ok += c.ok; sum.mm += c.mm; sum.inv += c.inv; sum.n += c.n; } });
     var fetched = sum.ok + sum.mm + sum.inv, fetch = sum.n ? fetched / sum.n : 0, priced = sum.ok + sum.mm, rough = priced ? sum.ok / priced : 1;
     var withData = days.filter(function(d){ var c = s.days[d]; return c && (c.ok + c.mm + c.inv) > 0; });
-    var withMM = days.filter(function(d){ var c = s.days[d]; return c && c.mm > 0; });
+    var withMM = days.filter(function(d){ var c = s.days[d]; return c && (c.mm > 0 || (fetched && sum.inv / fetched >= 0.2 && c.inv > 0)); });
     var last = withData.length ? [withData[withData.length - 1]] : days.filter(function(d){ return s.days[d] && s.days[d].n > 0; }).slice(-1);
     var uniq = function(a){ return a.filter(function(x, i){ return a.indexOf(x) === i; }); };
     if (s.status === '(not set yet)') return withData;
@@ -643,12 +645,13 @@ function kind(p){
 }
 
 function metrics(shop, days){
-  let ok = 0, mm = 0, inv = 0, n = 0; const errs = {}, pairs = [], perDay = []; let missing = 0;
+  let ok = 0, mm = 0, inv = 0, n = 0; const errs = {}, pairs = [], perDay = [], invRows = []; let missing = 0;
   for (const d of days){
     const c = shop.days?.[d]; if (!c) continue;
     ok += c.ok; mm += c.mm; inv += c.inv; n += c.n;
     for (const [k, v] of Object.entries(c.errs || {})) errs[k] = (errs[k] || 0) + v;
     const pr = (c.rows || []).filter(r => r.msg === 'Price MISMATCH').map(r => ({...r, day: d, k: kind(r)}));
+    invRows.push(...(c.rows || []).filter(r => r.msg === 'Inventory MISMATCH').map(r => ({...r, day: d})));
     if (c.mm > 0 && !c.rows) missing += c.mm;
     pairs.push(...pr);
     const tim = pr.filter(p => p.k === 'timing').length;
@@ -659,11 +662,36 @@ function metrics(shop, days){
   const tim = cnt.timing, fetched = ok + mm + inv, priced = ok + mm, nonTim = mm - tim;
   const topErr = Object.entries(errs).sort((a, b) => b[1] - a[1])[0];
   const pidSeen = {}; let repeats = 0; pairs.forEach(p => { if (pidSeen[p.pid]) repeats++; pidSeen[p.pid] = 1; });
-  return {ok, mm, inv, n, fetched, priced, tim, nonTim, cnt, pairs, perDay, missing, repeats,
+  return {ok, mm, inv, n, fetched, priced, tim, nonTim, cnt, pairs, perDay, missing, repeats, invRows,
     fetch: n ? fetched / n : 0, invShare: fetched ? inv / fetched : 0,
     rate: (ok + mm - tim) > 0 ? ok / (ok + mm - tim) : null,
     topErr: topErr ? `${topErr[0]} (${topErr[1]}×)` : 'foutmeldingen'};
 }
+
+/* Alle bevindingen in de meting, los van de regel die het voorstel bepaalde.
+   Een shop kan meer dan één probleem hebben (bijv. voorraad én prijs); die kun je zo samen in de note zetten. */
+function findings(it){
+  const m = it.m, out = [];
+  if (m.inv && m.invShare >= 0.2) out.push({cat:'voorraad', text:`voorraad: ${pct(m.invShare, 0)} Inventory MISMATCH (${m.inv}/${m.fetched})`});
+  if (m.cnt.verdacht){
+    const ex = m.pairs.filter(p => p.k === 'verdacht')[0];
+    out.push({cat:'prijs-verdacht', text:`prijs: ${m.cnt.verdacht}× verdachte uitlezing, bijv. site ${eur(ex.shop)} vs Beslist ${eur(ex.bes)}${suspectHint(m.pairs) ? ' (' + suspectHint(m.pairs) + ')' : ''}`});
+  }
+  if (m.cnt.echt) out.push({cat:'prijs-echt', text:`prijs: ${m.cnt.echt}× echte afwijking, prijs excl. timing ${pct(m.rate)} op ${m.priced} prijzen`});
+  if (m.tim >= 3) out.push({cat:'timing', text:`${m.tim}× timing (Beslist liep achter)`});
+  if (m.n >= 10 && m.fetch < T.fetchOk) out.push({cat:'fetch', text:`fetch ${pct(m.fetch, 0)}: ${m.topErr}`});
+  return out;
+}
+const NOTE_PHRASES = [
+  'gecontroleerd: op de site op voorraad, Dataedis leest voorraad verkeerd',
+  'gecontroleerd: Dataedis scrapet de verkeerde prijs',
+  'Dataedis scrapet doorgestreepte/van-prijs',
+  'Dataedis scrapet stukprijs, shop verkoopt per doos/set',
+  'Dataedis negeert de variant in de URL',
+  'gecontroleerd: site wijkt echt af van feed'
+];
+/* welke bevinding de hoofdregel al dekt (die staat al in de note) */
+const RULE_CAT = {N3:'fetch', H3:'fetch', N4:'voorraad', N5:'prijs-verdacht', H2:'prijs-verdacht', N6:'timing', N7:'prijs-echt', H1:'prijs-echt', H8:'prijs-echt'};
 
 function pct(x, d = 1){ return x == null ? '–' : (x * 100).toFixed(d).replace('.', ',') + '%'; }
 function eur(x){ return x == null ? '–' : '€' + x.toFixed(2).replace('.', ','); }
@@ -875,13 +903,13 @@ function recheck(shop, m, today){
 /* ================================================================
    APP-STATE
    ================================================================ */
-let S = {data:null, dec:{}, applied:{}, settings:{name:''}};
+let S = {data:null, dec:{}, applied:{}, hist:{}, settings:{name:''}};
 let VIEW = {step:1, filter:'open', node:null, open:{}};
 let ITEMS = [];
 let sucWin = null, collectorReady = false;
 
 function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { try { localStorage.setItem(LS_KEY, JSON.stringify({...S, data:null})); } catch (_) {} } }
-function load(){ try { const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (s && s.data) S = {dec:{}, applied:{}, settings:{name:''}, ...s}; } catch (e) {} }
+function load(){ try { const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (s && s.data) S = {dec:{}, applied:{}, hist:{}, settings:{name:''}, ...s}; } catch (e) {} }
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $ = id => document.getElementById(id);
@@ -1084,7 +1112,8 @@ function card(it){
   const jira = jiraFor(it, to);
   const flags = [...(ev.flags || [])];
   if (ev.check && d.state === 'open') flags.unshift({t:'controle nodig', c:'warn'});
-  if (k && k.dir === 'uit' && Math.abs(k.pp) > 0.1) flags.unshift({t:'4-ogen: grote KPI-impact', c:'bad'});
+  const hist = S.hist && S.hist[it.id];
+  if (hist && !applied) flags.push({t:`eerder in de app: ${hist.to || 'wachten'}, ${hist.label} (${hist.day})`, c:'acc'});
   if (shop.jira) flags.push({t:`${shop.jira.key}${shop.jira.closed ? ' (gesloten)' : ''}`, c:'acc'});
   if (shop.aff) flags.push({t:'affiliate', c:''});
   const metricsHtml = [
@@ -1100,8 +1129,7 @@ function card(it){
   if (applied) acts = `<span class="chip ok">doorgevoerd ${esc(applied.at ? new Date(applied.at).toLocaleDateString('nl-NL') : '')}</span>`;
   else if (!ev.to) acts = `<span class="chip">wachten op meer data</span>`;
   else {
-    const needCheck = ev.check && !d.checked, needFour = k && k.dir === 'uit' && Math.abs(k.pp) > 0.1 && !d.four;
-    const blocked = needCheck || needFour;
+    const blocked = ev.check && !d.checked;
     acts = d.state === 'open'
       ? `<button class="btn sm ok" data-act="approve" ${blocked ? 'disabled title="Doe eerst de controle hieronder"' : ''}>Akkoord</button><button class="btn sm" data-act="toggle">${open ? 'Sluiten' : blocked ? 'Controleren' : 'Details'}</button><button class="btn sm" data-act="skip">Overslaan</button>`
       : `<span class="chip ${d.state === 'skipped' ? '' : 'ok'}">${({approved:'akkoord', changed:'aangepast', skipped:'overgeslagen'})[d.state]}</span><button class="btn sm" data-act="undo">Terug</button><button class="btn sm" data-act="toggle">${open ? 'Sluiten' : 'Details'}</button>`;
@@ -1125,14 +1153,25 @@ function cardBody(it){
   const editable = !S.applied[it.id] && ev.to;
   let check = '';
   if (ev.check) check += `<div class="check"><b>Controle:</b> ${esc(ev.check)}<label><input type="checkbox" data-act="checked" ${d.checked ? 'checked' : ''}> Ik heb dit gecontroleerd</label></div>`;
-  if (k && k.dir === 'uit' && Math.abs(k.pp) > 0.1) check += `<div class="check"><b>4-ogen:</b> dit haalt ${k.fetched} opgehaalde producten uit de KPI (${(k.pp > 0 ? '+' : '−') + Math.abs(k.pp).toFixed(2).replace('.', ',')} pp). Laat een collega meekijken en zet de reden in de note.<label><input type="checkbox" data-act="four" ${d.four ? 'checked' : ''}> Een collega heeft meegekeken</label></div>`;
+  const note = finalNote(it);
+  const extra = findings(it).filter(f => f.cat !== RULE_CAT[ev.rule] && !note.includes(f.text));
+  const phrases = NOTE_PHRASES.filter(p => !note.includes(p));
   const edit = editable ? `<div class="edit">
       <label for="to_${it.id}">Status</label>
       <select id="to_${it.id}" data-act="to">${STATUSES.filter(s => s !== '(not set yet)').map(s => `<option ${s === to ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
       <label for="note_${it.id}">Note</label>
-      <input type="text" id="note_${it.id}" data-act="note" value="${esc(finalNote(it))}" ${d.keepNote ? 'disabled' : ''}>
+      <textarea id="note_${it.id}" data-act="note" rows="2" ${d.keepNote ? 'disabled' : ''}>${esc(note)}</textarea>
+      ${!d.keepNote && extra.length ? `<span class="small muted">Ook gezien</span><div class="flags" style="margin:0">${extra.map(f => `<button class="btn sm" data-act="addnote" data-text="${esc(f.text)}" title="Voeg toe aan de note">+ ${esc(f.text)}</button>`).join('')}</div>` : ''}
+      ${!d.keepNote ? `<span class="small muted">Na controle</span><div class="flags" style="margin:0">${phrases.map(p => `<button class="btn sm" data-act="addnote" data-text="${esc(p)}">+ ${esc(p)}</button>`).join('')}</div>` : ''}
       <span></span><label class="small"><input type="checkbox" data-act="keep" ${d.keepNote ? 'checked' : ''}> Huidige note in SUC laten staan${shop.note ? `: <i>${esc(shop.note.slice(0, 120))}</i>` : ''}</label>
     </div>` : '';
+  const invRows = m.invRows;
+  const invTbl = invRows.length ? `<div><h3>Voorraadafwijkingen (${invRows.length}) <span class="small muted">· Dataedis zag "niet op voorraad"; klik om de pagina van de shop te openen</span></h3><div class="tbl"><table>
+      <thead><tr><th>Dag</th><th>Product</th><th class="n">Beslist</th><th>Site (Dataedis)</th><th>Feed</th></tr></thead><tbody>
+      ${(VIEW.open[it.id + ':inv'] ? invRows : invRows.slice(0, 8)).map(p => `<tr><td>${ddmm(p.day)}</td><td><span class="mono">${esc(p.ext || p.pid)}</span></td><td class="n">${eur(p.bes)}</td>
+        <td>${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.shopTxt || 'niet op voorraad')}</a>` : esc(p.shopTxt || 'niet op voorraad')}</td>
+        <td class="small">${p.notFound ? '<span class="chip warn">niet meer in feed</span>' : p.feedAvail === true ? 'op voorraad' : p.feedAvail === false ? 'niet op voorraad' : '–'}</td></tr>`).join('')}
+      </tbody></table></div>${invRows.length > 8 ? `<button class="lnk small" data-act="allinv">${VIEW.open[it.id + ':inv'] ? 'minder tonen' : `alle ${invRows.length} tonen`}</button>` : ''}</div>` : '';
   const rows = m.pairs.slice().sort((a, b) => ['echt','afronding','verdacht','timing'].indexOf(a.k) - ['echt','afronding','verdacht','timing'].indexOf(b.k));
   const showAll = VIEW.open[it.id] === 'all';
   const tbl = rows.length ? `<div><h3>Prijsafwijkingen (${rows.length}) <span class="small muted">· klik de prijs om de pagina van de shop te openen</span></h3><div class="tbl"><table>
@@ -1149,7 +1188,7 @@ function cardBody(it){
     : tp && tp.action === 'geen' ? `<div class="msg info small"><b>Geen ticket:</b> ${esc(tp.reasons.join('; '))}.</div>` : '';
   return `<div class="cbody">
     <div><h3 style="margin-top:0">Waarom dit voorstel</h3>${why}</div>
-    ${check}${jiraNote}${edit}${tbl}${same}${perDay}
+    ${check}${jiraNote}${edit}${tbl}${invTbl}${same}${perDay}
     <div class="row small"><a href="${suc}" target="_blank" rel="noopener">Open in SUC Report ↗</a>${shop.jira ? `<a href="https://beslist.atlassian.net/browse/${esc(shop.jira.key)}" target="_blank" rel="noopener">${esc(shop.jira.key)} ↗</a>` : ''}${shop.reviewer ? `<span class="muted">laatste review: ${esc(shop.reviewer)}, ${esc(shop.lastReviewed)}</span>` : ''}</div>
   </div>`;
 }
@@ -1214,7 +1253,19 @@ function buildJob(){
 function acceptData(d, how){
   if (!d || d.kind !== 'suc-data' || !d.shops || !d.days) { toast('Dit is geen SUC-data.'); return; }
   const same = S.data && S.data.collectedAt === d.collectedAt;
-  if (!same){ S.dec = {}; S.applied = {}; }
+  if (!same){
+    // besluiten uit de vorige ronde bewaren, zodat een shop die terugkomt laat zien wat er eerder mee is gedaan
+    S.hist = S.hist || {};
+    if (S.data){
+      const day = ddmm(S.data.today);
+      ITEMS.forEach(it => {
+        const d = decOf(it), ap = S.applied[it.id];
+        if (d.state === 'open' && !ap) return;
+        S.hist[it.id] = {day, to: ap ? ap.to : finalTo(it), label: ap ? 'doorgevoerd in SUC' : d.state === 'skipped' ? 'overgeslagen' : 'akkoord maar niet doorgevoerd'};
+      });
+    }
+    S.dec = {}; S.applied = {};
+  }
   S.data = d; save(); buildItems();
   const v = d.v && d.v !== APP_VERSION && !d.demo ? `<div class="msg warn">Let op: de bladwijzer is versie ${esc(d.v)}, de app ${APP_VERSION}. Sleep de bladwijzer opnieuw.</div>` : '';
   $('recvMsg').innerHTML = `<div class="msg ok">${how}: ${Object.keys(d.shops).length} shops, ${ITEMS.length} voorstel(len).</div>${v}`;
@@ -1255,7 +1306,7 @@ function demoData(){
     mk('900001', 'Oefenshop Fietsen', '(not set yet)', [D(0,0,0,95,[], {'Http error: Beslist Proxy status code not 200: 403':95}), D(1,0,0,96,[], {'Http error: Beslist Proxy status code not 200: 403':95}), D(0,0,0,94,[], {'Http error: Beslist Proxy status code not 200: 403':94})]),
     mk('900002', 'Oefenshop Mode (affiliate)', '(not set yet)', [D(60,8,2,90,[]), D(58,9,1,92,[]), D(61,7,3,91,[])], {aff:true, clicks:0.9}),
     mk('900003', 'Oefenshop Wonen', '(not set yet)', [D(30,1,0,40,[row(129.95,119.95)]), D(28,0,1,38,[]), D(31,1,0,42,[row(49.99,49.95)])], {clicks:0.4}),
-    mk('900004', 'Oefenshop Tuin', '(not set yet)', [D(4,0,80,90,[]), D(3,1,82,92,[row(24.95,19.95)]), D(5,0,79,91,[])], {clicks:0.3}),
+    mk('900004', 'Oefenshop Tuin', '(not set yet)', [D(4,1,80,90,[row(0.07,466.9), ...[189,24.5,59].map(b => ({...row(null,b,{msg:'Inventory MISMATCH'}), shopTxt:'Out of Stock', feedAvail:true}))]), D(3,1,82,92,[row(24.95,19.95)]), D(5,0,79,91,[])], {clicks:0.3}),
     mk('900005', 'Oefenshop Wijn', '(not set yet)', [D(60,12,0,90, Array.from({length:12}, (_, i) => row(7.95 + i, (7.95 + i) * 6))), D(58,13,0,92, Array.from({length:13}, (_, i) => row(8.5 + i, (8.5 + i) * 6))), D(61,11,0,90, Array.from({length:11}, (_, i) => row(9.95 + i, (9.95 + i) * 6)))], {clicks:0.2}),
     mk('900006', 'Oefenshop Klus', '(not set yet)', [D(40,8,1,60,[row(59.95,49.95),row(129,99),row(24.5,19.95),row(89,79),row(15,12.5),row(44.95,39.95),row(210,189),row(9.99,9.98)]), D(42,7,0,60,[row(59.95,49.95),row(139,119),row(33,29.95),row(18.5,15),row(99,89),row(64,59),row(12.99,12.98)]), D(38,9,1,58,[row(59.95,49.95),row(75,65),row(27,22),row(48,39),row(130,115),row(11,9.5),row(36,30),row(199,179),row(5.49,5.48)])], {clicks:0.7}),
     mk('900007', 'Oefenshop Sport', '(not set yet)', [D(1,0,0,1,[]), D(0,0,0,0,[]), D(1,0,0,1,[])]),
@@ -1309,7 +1360,8 @@ function init(){
       case 'toggle': VIEW.open[id] = !VIEW.open[id]; break;
       case 'all': VIEW.open[id] = VIEW.open[id] === 'all' ? true : 'all'; break;
       case 'checked': d.checked = a.checked; break;
-      case 'four': d.four = a.checked; break;
+      case 'allinv': VIEW.open[id + ':inv'] = !VIEW.open[id + ':inv']; break;
+      case 'addnote': { const cur = finalNote(it); d.note = cur ? cur.replace(/[;.\s]+$/, '') + '; ' + a.dataset.text : a.dataset.text; break; }
       case 'keep': d.keepNote = a.checked; break;
       default: return;
     }

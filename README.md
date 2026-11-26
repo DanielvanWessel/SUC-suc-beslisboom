@@ -59,8 +59,7 @@ Hercontrole (H1–H12) controleert shops die al een status hebben, bijvoorbeeld 
 Shop Issue waarvan de prijzen weer kloppen, of een Dataedis Issue waarbij Dataedis weer
 goed uitleest. De volledige lijst staat onder *Uitleg* in de app.
 
-Venster: de laatste 3 volle dagen (vandaag telt nooit mee). Een voorstel dat een shop
-uit de KPI haalt en meer dan 0,1 pp effect heeft, vraagt een tweede paar ogen.
+Venster: de laatste 3 volle dagen (vandaag telt nooit mee).
 
 ## Onderhoud
 
