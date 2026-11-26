@@ -1,0 +1,1350 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUC-beslisboom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#fff; --fg:#17202b; --muted:#566273; --line:#dde2e9;
+  --accent:#1f5fbf; --accent-soft:#e6eefa;
+  --ok:#1d7a4c; --ok-soft:#e3f3ea; --warn:#a86400; --warn-soft:#fbf0dc; --bad:#b3261e; --bad-soft:#fbe7e5; --neutral-soft:#eef0f3;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161d; --surface:#18202a; --fg:#e6ebf1; --muted:#9aa6b5; --line:#2a3542;
+  --accent:#7fb0ff; --accent-soft:#1c2c45; --ok:#62c995; --ok-soft:#163326; --warn:#f0b55a; --warn-soft:#3a2a10;
+  --bad:#ff8a80; --bad-soft:#3d1a18; --neutral-soft:#222c38; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg); color:var(--fg); font:15px/1.5 var(--f-body)}
+a{color:var(--accent)}
+button{font:inherit; cursor:pointer}
+.mono{font-family:var(--f-mono); font-size:.9em}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.hidden{display:none !important}
+
+/* top */
+header.top{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--line)}
+.topin{max-width:1320px; margin:0 auto; padding:10px 16px; display:flex; gap:12px 20px; align-items:center; flex-wrap:wrap}
+.brand{font-weight:600; font-size:1.05rem; white-space:nowrap}
+.brand small{font-weight:400; color:var(--muted); margin-left:6px}
+.steps{display:flex; gap:4px; flex-wrap:wrap}
+.steps button{border:1px solid var(--line); background:transparent; color:var(--fg); border-radius:999px; padding:4px 12px; font-size:.9rem}
+.steps button[aria-current="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+.steps button:disabled{opacity:.45; cursor:default}
+.steps .cnt{display:inline-block; min-width:1.4em; margin-left:4px; padding:0 5px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:.78rem}
+.steps button[aria-current="true"] .cnt{background:#fff3; color:#fff}
+.topright{margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.stamp{font-size:.82rem; color:var(--muted)}
+.lnk{background:none; border:none; color:var(--accent); padding:0; text-decoration:underline}
+
+/* layout */
+.layout{max-width:1320px; margin:0 auto; padding:18px 16px 60px; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:20px; align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)} aside.impact{order:-1; position:static !important}}
+main{min-width:0}
+h1{font-size:1.45rem; margin:0 0 4px}
+h2{font-size:1.1rem; margin:0 0 6px}
+h3{font-size:.95rem; margin:14px 0 6px}
+p{margin:6px 0}
+.lede{color:var(--muted); margin:0 0 16px; max-width:72ch}
+
+/* buttons */
+.btn{border:1px solid var(--line); background:var(--surface); color:var(--fg); border-radius:6px; padding:6px 12px; font-size:.9rem; line-height:1.3}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.ok{background:var(--ok); border-color:var(--ok); color:#fff}
+.btn.sm{padding:3px 9px; font-size:.84rem}
+.btn:disabled{opacity:.5; cursor:default}
+.btn.on{outline:2px solid var(--accent); outline-offset:1px}
+
+/* panels */
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px}
+.stepnum{display:inline-grid; place-items:center; width:24px; height:24px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:600; font-size:.85rem; margin-right:8px}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.bm{display:inline-block; padding:7px 14px; border-radius:6px; background:var(--accent); color:#fff; text-decoration:none; font-weight:600; cursor:grab; border:2px dashed transparent}
+.bm:hover{border-color:#fff8}
+textarea, input[type=text], select{font:inherit; color:var(--fg); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:6px 8px}
+textarea{width:100%; resize:vertical}
+.msg{padding:8px 12px; border-radius:6px; margin:8px 0; font-size:.9rem}
+.msg.ok{background:var(--ok-soft); color:var(--ok)} .msg.warn{background:var(--warn-soft); color:var(--warn)} .msg.bad{background:var(--bad-soft); color:var(--bad)} .msg.info{background:var(--accent-soft); color:var(--fg)}
+
+/* chips */
+.chip{display:inline-block; font-size:.78rem; font-weight:500; padding:1px 8px; border-radius:999px; white-space:nowrap; background:var(--neutral-soft); color:var(--fg)}
+.chip.ok{background:var(--ok-soft); color:var(--ok)} .chip.warn{background:var(--warn-soft); color:var(--warn)} .chip.bad{background:var(--bad-soft); color:var(--bad)} .chip.acc{background:var(--accent-soft); color:var(--accent)}
+
+/* beslisboom */
+.tree{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 4px}
+.node{border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:6px 10px; text-align:left; min-width:0; color:var(--fg)}
+.node b{font-family:var(--f-mono); font-size:.78rem; color:var(--accent); margin-right:6px}
+.node .n{display:inline-block; min-width:1.6em; text-align:center; margin-left:6px; border-radius:999px; background:var(--neutral-soft); font-size:.78rem; font-weight:600}
+.node.zero{opacity:.45}
+.node[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
+.treehint{font-size:.85rem; color:var(--muted); min-height:1.3em; margin:2px 0 10px}
+.filters{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 12px; align-items:center}
+
+/* cards */
+.card{background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--line); border-radius:8px; margin-bottom:10px}
+.card.approved{border-left-color:var(--ok)} .card.changed{border-left-color:var(--accent)} .card.skipped{border-left-color:var(--muted); opacity:.7} .card.done{border-left-color:var(--ok); opacity:.75}
+.chead{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 14px; padding:12px 14px; align-items:start}
+.cname{font-weight:600}
+.cname .mono{font-weight:400; color:var(--muted)}
+.trans{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:3px; font-size:.9rem}
+.st{display:inline-block; padding:1px 8px; border-radius:4px; font-size:.82rem; font-weight:500; background:var(--neutral-soft); white-space:nowrap}
+.st.s-ok{background:var(--ok-soft); color:var(--ok)} .st.s-shop{background:var(--bad-soft); color:var(--bad)} .st.s-data{background:var(--warn-soft); color:var(--warn)} .st.s-besl{background:var(--accent-soft); color:var(--accent)}
+.reason{margin-top:5px; font-size:.92rem}
+.metrics{display:flex; gap:6px 14px; flex-wrap:wrap; margin-top:6px; font-size:.84rem; color:var(--muted)}
+.metrics b{color:var(--fg); font-variant-numeric:tabular-nums; font-weight:600}
+.flags{display:flex; gap:5px; flex-wrap:wrap; margin-top:7px}
+.acts{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+.cbody{border-top:1px solid var(--line); padding:12px 14px; display:grid; gap:12px}
+.why{margin:0; padding-left:1.1rem; font-size:.9rem}
+.why li{margin:2px 0}
+.why li.pass::marker{content:"✓  "; color:var(--ok)}
+.why li.hit::marker{content:"➜  "; color:var(--accent)}
+.check{background:var(--warn-soft); border-radius:6px; padding:8px 12px; font-size:.9rem}
+.check label{display:flex; gap:8px; align-items:flex-start; margin-top:6px; font-weight:500}
+.edit{display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 10px; align-items:center; font-size:.9rem}
+.tbl{overflow-x:auto; border:1px solid var(--line); border-radius:6px}
+table{border-collapse:collapse; width:100%; font-size:.86rem}
+th,td{text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+th{font-size:.75rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); background:var(--neutral-soft); font-weight:600}
+tr:last-child td{border-bottom:none}
+td.n{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+.k-echt{color:var(--bad); font-weight:500} .k-afronding{color:var(--muted)} .k-verdacht{color:var(--warn); font-weight:500} .k-timing{color:var(--accent)}
+.empty{padding:30px; text-align:center; color:var(--muted)}
+
+/* impact */
+aside.impact{position:sticky; top:66px; display:grid; gap:10px}
+.icard{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:12px 14px}
+.icard h4{margin:0 0 6px; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
+.big{font-size:1.45rem; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2}
+.delta{font-weight:600; font-size:.95rem; margin-left:6px}
+.delta.up{color:var(--ok)} .delta.down{color:var(--bad)} .delta.zero{color:var(--muted)}
+.irow{display:flex; justify-content:space-between; gap:8px; font-size:.88rem; padding:2px 0}
+.irow b{font-variant-numeric:tabular-nums}
+.inote{font-size:.8rem; color:var(--muted); margin-top:6px}
+.progress{height:6px; background:var(--neutral-soft); border-radius:3px; overflow:hidden; margin-top:6px}
+.progress i{display:block; height:100%; background:var(--ok)}
+@media (max-width:1000px){aside.impact{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}}
+
+/* drawer */
+.drawer{position:fixed; inset:0; background:#0006; z-index:50; display:flex; justify-content:flex-end}
+.drawer > div{background:var(--surface); width:min(560px,100%); height:100%; overflow:auto; padding:20px 22px}
+.drawer h2{margin-top:18px}
+.drawer ol, .drawer ul{padding-left:1.2rem}
+.drawer li{margin:3px 0}
+pre.ticket{white-space:pre-wrap; background:var(--neutral-soft); border-radius:6px; padding:10px 12px; font-family:var(--f-mono); font-size:.82rem; margin:6px 0}
+.toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--fg); color:var(--bg); padding:8px 16px; border-radius:6px; z-index:60; font-size:.9rem}
+</style>
+</head>
+<body>
+<header class="top"><div class="topin">
+  <div class="brand">SUC-beslisboom<small id="ver"></small></div>
+  <nav class="steps" aria-label="Stappen">
+    <button data-step="1" aria-current="true">1 · Ophalen</button>
+    <button data-step="2" disabled>2 · Beoordelen <span class="cnt" id="cntOpen">0</span></button>
+    <button data-step="3" disabled>3 · Doorvoeren <span class="cnt" id="cntApproved">0</span></button>
+  </nav>
+  <div class="topright">
+    <span class="stamp" id="stamp">Nog geen data</span>
+    <button class="lnk" id="btnUitleg">Uitleg</button>
+  </div>
+</div></header>
+
+<div class="layout">
+<main>
+  <!-- STAP 1 -->
+  <section id="step1">
+    <h1>SUC-data ophalen</h1>
+    <p class="lede">De app leest de SUC Report zelf uit, in jouw eigen browser en met jouw eigen inlog. Er gaat geen data naar GitHub of naar een andere server.</p>
+
+    <div class="panel">
+      <h2><span class="stepnum">a</span>Eenmalig: zet de bladwijzer klaar</h2>
+      <p>Sleep deze knop naar je bladwijzerbalk (zie je die niet: <span class="mono">Ctrl+Shift+B</span>).</p>
+      <div class="row"><a class="bm" id="bookmarklet" href="#" title="Sleep mij naar je bladwijzerbalk">SUC ophalen</a>
+      <span class="small muted" id="bmVer"></span></div>
+      <p class="small muted">Is de app bijgewerkt (de versie hierboven verandert)? Sleep de knop dan opnieuw. Lukt slepen niet: <button class="lnk" id="copyConsole">kopieer de code</button> en plak die in de console van de SUC Report (F12).</p>
+    </div>
+
+    <div class="panel">
+      <h2><span class="stepnum">b</span>Open de SUC Report en klik op de bladwijzer</h2>
+      <div class="row"><button class="btn primary" id="btnOpenSuc">Open SUC Report</button>
+      <span class="small muted">Rechtsonder verschijnt een paneel. Kies daar <b>Ophalen</b>. De gegevens komen vanzelf hier terug.</span></div>
+      <ul class="small muted" style="margin:10px 0 0">
+        <li><b>Nieuwe shops</b> (± 2 min): alle shops op <i>(not set yet)</i>.</li>
+        <li><b>Alles + hercontrole</b> (± 5–10 min): ook shops met een status die mogelijk niet meer klopt.</li>
+      </ul>
+      <div id="recvMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="stepnum">c</span>Kwamen de gegevens niet vanzelf terug?</h2>
+      <p class="small">Klik in het SUC-paneel op <b>Kopieer data</b> en plak hier (Ctrl+V).</p>
+      <textarea id="pasteData" rows="3" placeholder="Plak hier de SUC-data…"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn" id="btnLoadPaste">Inladen</button>
+      <span class="small muted">of</span> <button class="btn" id="btnDemo">Oefenen met voorbeelddata</button></div>
+    </div>
+  </section>
+
+  <!-- STAP 2 -->
+  <section id="step2" class="hidden">
+    <h1>Voorstellen beoordelen</h1>
+    <p class="lede" id="lede2"></p>
+    <div class="panel" style="padding:12px 14px">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Beslisboom</h2>
+        <span class="small muted">De eerste regel die past, bepaalt het voorstel. Klik een stap om te filteren.</span></div>
+      <div class="tree" id="treeNew"></div>
+      <div class="tree" id="treeHer"></div>
+      <div class="treehint" id="treeHint"></div>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="cards"></div>
+  </section>
+
+  <!-- STAP 3 -->
+  <section id="step3" class="hidden">
+    <h1>Doorvoeren</h1>
+    <p class="lede">Goedgekeurde besluiten gaan naar het SUC-paneel. Daar zie je de lijst nog één keer en klik je zelf op <b>Doorvoeren</b>. Het paneel controleert per shop of de status nog is wat deze app verwacht, en leest na het opslaan de nieuwe status terug.</p>
+    <div class="panel" id="applyPanel"></div>
+    <div class="panel" id="jiraPanel"></div>
+  </section>
+</main>
+
+<aside class="impact" id="impact"></aside>
+</div>
+
+<div class="drawer hidden" id="drawer" role="dialog" aria-label="Uitleg"><div>
+  <div class="row" style="justify-content:space-between"><h1 style="margin:0">Uitleg</h1><button class="btn sm" id="closeDrawer">Sluiten</button></div>
+  <h2>Wat meet SUC?</h2>
+  <p>Dataedis opent per shop elke dag ongeveer 100 productpagina's via de Beslist-uitklik en vergelijkt prijs en voorraad met wat Beslist op dat moment toonde.</p>
+  <ul>
+    <li><b>Fetch</b>: deel van de pagina's dat geopend en uitgelezen kon worden.</li>
+    <li><b>Prijs excl. timing</b>: Price OK ÷ (OK + Price MISMATCH − timing). Timing = Beslist liep achter, maar de feed is inmiddels gelijk aan de site.</li>
+    <li><b>Soort afwijking</b>: <i>afronding</i> ≤ €0,10 of ≤ 0,5%; <i>timing</i> = gele rij in SUC; <i>verdacht</i> = factor &gt; 3; <i>echt</i> = de rest.</li>
+  </ul>
+  <h2>De officiële KPI</h2>
+  <p>Price + Inventory Match: opgehaalde producten waarbij prijs én voorraad kloppen. <b>Niet</b> meegeteld: affiliates en shops op <i>Dataedis Issue</i> of <i>Dataedis issue - not yet reported</i>. De KPI gebruikt de <b>huidige</b> status: een statuswijziging verandert de KPI ook terug in de tijd.</p>
+  <p>Daarom laat de app bij elk voorstel zien of de shop de KPI in of uit gaat. Een shop uit de KPI halen mag alleen als de fout aantoonbaar bij Dataedis ligt, niet om de KPI te verbeteren.</p>
+  <h2>De statussen</h2>
+  <ul>
+    <li><b>OK</b>: prijzen kloppen (of affiliate).</li>
+    <li><b>Shop Issue</b>: de feed van de shop klopt niet met de site. Krijgt een CMDASH-ticket.</li>
+    <li><b>Beslist Issue</b>: de fout zit bij Beslist (bijv. zoekindex liep achter).</li>
+    <li><b>Dataedis issue - not yet reported</b>: Dataedis leest verkeerd uit; nog te melden bij Dataedis (wachtkamer).</li>
+    <li><b>Dataedis Issue</b>: gemeld bij Dataedis.</li>
+    <li><b>(not set yet)</b>: nog niet beoordeeld. Dit is de werkvoorraad.</li>
+  </ul>
+  <h2>De beslisboom</h2>
+  <p class="small">Voor shops op <i>(not set yet)</i> lopen we de stappen N0 tot en met N8 af; de eerste die past, bepaalt het voorstel. Shops met een status gaan door de hercontrole (H-regels); alleen als de status niet meer klopt, verschijnt een voorstel.</p>
+  <div id="rulesList" class="small"></div>
+  <h2>Werkwijze</h2>
+  <ol>
+    <li>Haal data op (laatste 3 volle dagen; vandaag telt nooit mee).</li>
+    <li>Loop de voorstellen langs. Gele blokken vragen een controle op de site voordat je akkoord geeft.</li>
+    <li>Voer door via het SUC-paneel. Maak tickets via de knop <i>Create Jira ticket</i> in SUC, zodat de Jira-badge klopt.</li>
+  </ol>
+  <h2>Bronnen</h2>
+  <p class="small muted">De regels komen uit de SUC-reviewronde van november 2026 (beslisladder N0–N8, hercontrole en ticketregels). Vragen of een regel die niet klopt: meld het bij de beheerder van deze app.</p>
+</div></div>
+
+<script>
+'use strict';
+const APP_VERSION = '1.0.0';
+const SUC_URL = 'https://backendtools.aks.beslist.nl/sucreport';
+const LS_KEY = 'sucbb:v1';
+
+/* ================================================================
+   COLLECTOR — draait als bladwijzer op de SUC Report.
+   Moet zelfstandig zijn: gebruikt niets uit de rest van deze pagina.
+   ================================================================ */
+function sucCollector(){
+  var V = '__APP_VERSION__';
+  if (window.__sucbb) { window.__sucbb.show(); return; }
+  if (!/backendtools\.aks\.beslist\.nl$/.test(location.hostname) || !/sucreport/i.test(location.pathname)) {
+    alert('Open eerst de SUC Report (backendtools.aks.beslist.nl/sucreport) en klik dan opnieuw op deze bladwijzer.');
+    return;
+  }
+  var ENU = {'(not set yet)':'enuNotSet','OK':'enuOK','Ignore':'enuIgnore','Recheck':'enuRecheck','Research':'enuResearch','Shop Issue':'enuShopIssue','Beslist Issue':'enuBeslistIssue','Dataedis Issue':'enuDataedisIssue','Dataedis issue - not yet reported':'enuDataedisIssueNotReported'};
+  var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+  var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var txt = function(el){ return el ? (el.innerText || el.textContent || '').trim() : ''; };
+  var shopTable = function(){ return $$('table').find(function(t){ return /Num Samples/.test(txt(t.querySelector('thead'))); }); };
+  var detailModal = function(){ return document.querySelector('[id^=modalShopDetails]'); };
+  var money = function(s){ var m = String(s || '').replace(/[^\d,.\-]/g, '').replace(/\./g, '').replace(',', '.'); var v = parseFloat(m); return isNaN(v) ? null : v; };
+  var shown = function(el){ return !!el && getComputedStyle(el).display !== 'none'; };
+  var fire = function(el, v){ el.value = v; el.dispatchEvent(new Event('input', {bubbles:true})); el.dispatchEvent(new Event('change', {bubbles:true})); };
+  var iso = function(d){ return d.toISOString().slice(0, 10); };
+  var addDays = function(s, n){ var d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+
+  /* ---------- paneel (shadow DOM, zodat de SUC-styling er niet aan komt) ---------- */
+  var host = document.createElement('div');
+  host.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000';
+  var root = host.attachShadow({mode:'open'});
+  root.innerHTML = '<style>' +
+    '*{box-sizing:border-box}.p{width:370px;max-height:80vh;overflow:auto;background:#fff;color:#17202b;border:1px solid #c9d1dc;border-radius:10px;box-shadow:0 8px 30px #0003;font:14px/1.45 "Segoe UI",system-ui,sans-serif}' +
+    '.h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1f5fbf;color:#fff;border-radius:10px 10px 0 0;font-weight:600}' +
+    '.h button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer}.b{padding:12px 14px;border-bottom:1px solid #e3e7ee}' +
+    'h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#566273}' +
+    'button.x{font:inherit;border:1px solid #c9d1dc;background:#fff;border-radius:6px;padding:5px 11px;cursor:pointer;margin:2px 4px 2px 0}' +
+    'button.pr{background:#1f5fbf;border-color:#1f5fbf;color:#fff}button.go{background:#1d7a4c;border-color:#1d7a4c;color:#fff}button:disabled{opacity:.5;cursor:default}' +
+    'label{display:block;margin:2px 0}.bar{height:6px;background:#eef0f3;border-radius:3px;overflow:hidden;margin:8px 0 4px}.bar i{display:block;height:100%;width:0;background:#1d7a4c;transition:width .3s}' +
+    '.log{font-size:12px;color:#566273;min-height:1.3em}.ok{color:#1d7a4c}.bad{color:#b3261e}.warn{color:#a86400}' +
+    'ul{list-style:none;padding:0;margin:6px 0;font-size:12.5px}li{padding:3px 0;border-bottom:1px solid #f0f2f5}textarea{width:100%;font:12px monospace}' +
+    '.s{font-size:12px;color:#566273}' +
+    '</style>' +
+    '<div class="p"><div class="h"><span>SUC-beslisboom · koppeling v' + V + '</span><button id="cl" title="Sluiten">×</button></div>' +
+    '<div class="b"><h4>Ophalen</h4>' +
+    '<label><input type="radio" name="sc" value="new" checked> Nieuwe shops <span class="s">(not set yet, ± 2 min)</span></label>' +
+    '<label><input type="radio" name="sc" value="all"> Alles + hercontrole <span class="s">(± 5–10 min)</span></label>' +
+    '<label class="s">Venster: <select id="win"><option value="3" selected>laatste 3 volle dagen</option><option value="7">laatste 7 volle dagen</option></select></label>' +
+    '<button class="x pr" id="go">Ophalen</button><button class="x" id="cp" disabled>Kopieer data</button>' +
+    '<div class="bar"><i id="pb"></i></div><div class="log" id="lg">Klaar om op te halen. Laat dit tabblad open tijdens het ophalen.</div></div>' +
+    '<div class="b"><h4>Doorvoeren</h4><div id="job" class="s">Nog geen opdracht. Klik in de app op <b>Stuur naar SUC</b>, of plak de opdracht hier:</div>' +
+    '<textarea id="jp" rows="2" placeholder="Plak opdracht…"></textarea>' +
+    '<div id="jobui"></div></div></div>';
+  document.body.appendChild(host);
+  var q = function(id){ return root.getElementById(id); };
+  var log = function(s, cls){ q('lg').className = 'log ' + (cls || ''); q('lg').textContent = s; };
+  var prog = function(f){ q('pb').style.width = Math.round(f * 100) + '%'; };
+  var api = { show: function(){ host.style.display = ''; } };
+  window.__sucbb = api;
+  q('cl').onclick = function(){ host.style.display = 'none'; };
+  var toApp = function(msg){ try { if (window.opener && !window.opener.closed) { window.opener.postMessage(msg, '*'); return true; } } catch (e) {} return false; };
+  var copy = function(s){
+    try { navigator.clipboard.writeText(s); return true; } catch (e) {}
+    var ta = document.createElement('textarea'); ta.value = s; document.body.appendChild(ta); ta.select();
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); return ok;
+  };
+  toApp({kind:'suc-hello', v:V});
+
+  /* ---------- SUC uitlezen ---------- */
+  var kpiLabel = function(){
+    var tr = $$('tr').find(function(r){ return /Official KPI/.test(txt(r)); });
+    var l = tr && tr.querySelector('[aria-label]');
+    var m = l && (l.getAttribute('aria-label') || '').match(/Aantal:\s*(\d+)\s*\/\s*(\d+)/);
+    return m ? {num:+m[1], den:+m[2]} : null;
+  };
+  var sig = function(){
+    var t = shopTable(); if (!t) return '';
+    var rs = $$('tbody tr', t); var k = kpiLabel();
+    return rs.length + '|' + (k ? k.num + '/' + k.den : '') + '|' + rs.slice(0, 3).map(function(r){ return r.title; }).join('#');
+  };
+  var waitStable = async function(prev){
+    var t0 = Date.now(), last = null, since = Date.now();
+    while (Date.now() - t0 < 45000) {
+      await sleep(400);
+      var main = document.querySelector('main') || document.body;
+      if (/Loading\.\.\./.test((main.innerText || '').slice(0, 3000))) { since = Date.now(); continue; }
+      var s = sig();
+      if (!s) continue;
+      if (s !== last) { last = s; since = Date.now(); continue; }
+      if (s !== prev && Date.now() - since > 1000) return true;
+      if (Date.now() - t0 > 9000 && Date.now() - since > 2500) return true;
+    }
+    return false;
+  };
+  var hideBox = function(){ var t = shopTable(); return t && t.querySelector('thead input[type=checkbox]'); };
+  var ensureHideOff = async function(){
+    var cb = hideBox();
+    if (cb && cb.checked) { var p = sig(); cb.click(); await waitStable(p); }
+  };
+  var setDate = async function(d){
+    var inp = document.querySelector('#SUCDate');
+    if (inp.value === d) return;
+    var p = sig(); fire(inp, d); await waitStable(p);
+  };
+  var statusOf = function(td){
+    var s = Array.prototype.slice.call(td.childNodes).filter(function(n){ return n.nodeType === 3; }).map(function(n){ return n.textContent; }).join('').trim();
+    return s || '(not set yet)';
+  };
+  var readShops = function(){
+    var t = shopTable(); if (!t) return [];
+    return $$('tbody tr', t).filter(function(r){ return r.cells.length >= 9; }).map(function(r){
+      var c = r.cells, nm = txt(c[0]).match(/^(.*)\s\((\d+)\)$/); if (!nm) return null;
+      var counts = {ok:0, mm:0, inv:0, errs:{}};
+      (r.title || '').split('\n').forEach(function(line){
+        var m = line.trim().match(/^(.*)\s\((\d+)\)$/); if (!m) return;
+        var k = m[1].trim().replace(/Get "[^"]*"/, 'Get <url>').replace(/\s*\(Client\.Timeout[^)]*\)/, '').slice(0, 90), v = +m[2];
+        if (k === 'Price OK') counts.ok += v; else if (k === 'Price MISMATCH') counts.mm += v; else if (k === 'Inventory MISMATCH') counts.inv += v; else counts.errs[k] = (counts.errs[k] || 0) + v;
+      });
+      var ja = c[7].querySelector('a[href*="/browse/"]');
+      return {
+        id: nm[2], name: nm[1], aff: txt(c[3]) === 'V', clicks: parseFloat(txt(c[2]).replace('%', '').replace(',', '.')) || 0,
+        n: parseInt(txt(c[6]), 10) || 0, status: statusOf(c[7]), lastReviewed: txt(c[8]),
+        wl: !!c[7].querySelector('[title="On SUC worklist"]'),
+        jira: ja ? {key: ja.href.split('/browse/')[1], closed: /closed/i.test(ja.title || '') || ja.classList.contains('text-decoration-line-through')} : null,
+        ok: counts.ok, mm: counts.mm, inv: counts.inv, errs: counts.errs
+      };
+    }).filter(Boolean);
+  };
+  var findRow = function(id){
+    var t = shopTable(); if (!t) return null;
+    return $$('tbody tr', t).find(function(r){ return r.cells.length >= 9 && /\((\d+)\)$/.test(txt(r.cells[0])) && txt(r.cells[0]).slice(-(id.length + 2)) === '(' + id + ')'; });
+  };
+  var closeModal = async function(m){
+    var b = $$('button', m).find(function(x){ return txt(x) === 'Close'; }) || m.querySelector('.btn-close');
+    if (b) b.click();
+    var t0 = Date.now(); while (shown(m) && Date.now() - t0 < 3000) await sleep(100);
+    await sleep(150);
+  };
+  var openDetails = async function(id){
+    var tr = findRow(id); if (!tr) return null;
+    var m = detailModal(); tr.click();
+    var t0 = Date.now(), ok = false;
+    while (Date.now() - t0 < 15000) {
+      await sleep(200);
+      if (shown(m) && txt(m.querySelector('.modal-title')).indexOf('(' + id + ')') >= 0 && m.querySelectorAll('tbody tr').length) { ok = true; break; }
+    }
+    if (!ok) { if (shown(m)) await closeModal(m); return null; }
+    await sleep(200);
+    var sb = txt(m.querySelector('.divReviewStatus'));
+    var note = (sb.match(/Note:\s*([\s\S]*)$/) || [])[1] || '';
+    var reviewer = (sb.match(/ by\s+(\S+)/) || [])[1] || '';
+    var rows = [], urls = {};
+    $$('tbody tr', m).filter(function(r){ return r.cells.length >= 8; }).forEach(function(r){
+      var c = r.cells, sp = c[1].querySelectorAll('span'), a = c[4].querySelector('a');
+      var msg = txt(c[7]), url = a ? a.href : '', pid = sp[0] ? txt(sp[0]) : '', ext = sp[1] ? txt(sp[1]) : '';
+      if (url && /OK|MISMATCH/.test(msg)) { (urls[url] = urls[url] || {}); urls[url][ext || pid] = 1; }
+      if (!/MISMATCH/.test(msg)) return;
+      var feed = (r.title.match(/MappedFeedline:\s*([^\n]*)/) || [])[1] || '';
+      rows.push({pid: pid, ext: ext, cat: txt(c[2]), url: url, shop: money(txt(c[4])), bes: money(txt(c[5]).replace(/timing/i, '')),
+        at: txt(c[6]), msg: msg, timing: r.classList.contains('wrongPriceDueToTiming') || /timing/i.test(txt(c[5])),
+        notFound: /not found/i.test(feed), feed: money(feed.split('(')[0])});
+    });
+    var same = Object.keys(urls).filter(function(u){ return Object.keys(urls[u]).length >= 2; }).map(function(u){ return {url: u, exts: Object.keys(urls[u])}; });
+    await closeModal(m);
+    return {note: note.trim(), reviewer: reviewer, rows: rows, same: same};
+  };
+
+  var needsDetails = function(s, days, scope){
+    if (s.aff) return [];
+    var sum = {ok:0, mm:0, inv:0, n:0};
+    days.forEach(function(d){ var c = s.days[d]; if (c) { sum.ok += c.ok; sum.mm += c.mm; sum.inv += c.inv; sum.n += c.n; } });
+    var fetched = sum.ok + sum.mm + sum.inv, fetch = sum.n ? fetched / sum.n : 0, priced = sum.ok + sum.mm, rough = priced ? sum.ok / priced : 1;
+    var withData = days.filter(function(d){ var c = s.days[d]; return c && (c.ok + c.mm + c.inv) > 0; });
+    var withMM = days.filter(function(d){ var c = s.days[d]; return c && c.mm > 0; });
+    var last = withData.length ? [withData[withData.length - 1]] : days.filter(function(d){ return s.days[d] && s.days[d].n > 0; }).slice(-1);
+    var uniq = function(a){ return a.filter(function(x, i){ return a.indexOf(x) === i; }); };
+    if (s.status === '(not set yet)') return withData;
+    if (scope !== 'all') return [];
+    var st = s.status;
+    if (st === 'OK') return (priced >= 10 && rough <= 0.95) ? (withMM.length ? withMM : last) : [];
+    if (st === 'Dataedis Issue') return (fetch >= 0.7 && priced >= 10) ? uniq(withMM.concat(last)) : [];
+    return uniq(withMM.concat(last));
+  };
+
+  var collecting = false, lastPayload = null;
+  q('go').onclick = async function(){
+    if (collecting) return; collecting = true; q('go').disabled = true; q('cp').disabled = true;
+    try {
+      var scope = root.querySelector('input[name=sc]:checked').value, W = +q('win').value;
+      var inp = document.querySelector('#SUCDate'); if (!inp) throw new Error('Datumveld niet gevonden: staat de SUC Report open?');
+      var orig = inp.value, today = inp.getAttribute('max') || orig;
+      var days = []; for (var i = W; i >= 1; i--) days.push(addDays(today, -i));
+      var shops = {}, kpi = {}, step = 0, total = days.length + 1;
+      log('Instellingen klaarzetten…'); await ensureHideOff();
+      for (var di = 0; di < days.length; di++) {
+        var d = days[di];
+        log('Tellingen ' + d + ' (' + (di + 1) + '/' + days.length + ')…');
+        await setDate(d); await ensureHideOff();
+        kpi[d] = kpiLabel();
+        readShops().forEach(function(r){
+          var s = shops[r.id] || (shops[r.id] = {id: r.id, days: {}});
+          s.name = r.name; s.aff = r.aff; s.clicks = r.clicks; s.status = r.status; s.lastReviewed = r.lastReviewed; s.wl = r.wl; s.jira = r.jira;
+          s.days[d] = {ok: r.ok, mm: r.mm, inv: r.inv, n: r.n, errs: r.errs};
+        });
+        prog(++step / total);
+      }
+      var plan = {};
+      Object.keys(shops).forEach(function(id){ needsDetails(shops[id], days, scope).forEach(function(d){ (plan[d] = plan[d] || []).push(id); }); });
+      var nPlan = Object.keys(plan).reduce(function(a, d){ return a + plan[d].length; }, 0);
+      total = days.length + nPlan + 1; var done = 0;
+      for (var dj = 0; dj < days.length; dj++) {
+        var dd = days[dj]; if (!plan[dd]) continue;
+        await setDate(dd); await ensureHideOff();
+        for (var k = 0; k < plan[dd].length; k++) {
+          var id = plan[dd][k], s = shops[id];
+          log('Shopdetails ' + dd + ': ' + s.name + ' (' + (++done) + '/' + nPlan + ')');
+          var det = await openDetails(id);
+          if (det) {
+            s.days[dd].rows = det.rows;
+            if (det.note || det.reviewer) { s.note = det.note; s.reviewer = det.reviewer; }
+            if (det.same.length) s.same = (s.same || []).concat(det.same.map(function(x){ x.day = dd; return x; }));
+            s.detailDays = (s.detailDays || []).concat([dd]);
+          } else {
+            s.detailFail = (s.detailFail || []).concat([dd]);
+          }
+          prog((days.length + done) / total);
+        }
+      }
+      log('Afronden…'); await setDate(orig);
+      lastPayload = {kind: 'suc-data', v: V, collectedAt: new Date().toISOString(), today: today, days: days, scope: scope, kpi: kpi, shops: shops};
+      prog(1);
+      var sent = toApp(lastPayload);
+      q('cp').disabled = false;
+      log((sent ? 'Klaar en naar de app gestuurd' : 'Klaar. Klik op Kopieer data en plak in de app') + ': ' + Object.keys(shops).length + ' shops, ' + nPlan + ' shopdetails.', 'ok');
+    } catch (e) {
+      log('Fout: ' + e.message, 'bad');
+    }
+    collecting = false; q('go').disabled = false;
+  };
+  q('cp').onclick = function(){ if (lastPayload) log(copy(JSON.stringify(lastPayload)) ? 'Gekopieerd. Plak in de app (stap 1c).' : 'Kopiëren mislukt.', 'ok'); };
+  api.lastPayload = function(){ return lastPayload; };
+
+  /* ---------- doorvoeren ---------- */
+  var bulk = function(){
+    var hdr = $$('button').find(function(b){ return /Bulk status/.test(txt(b)); });
+    if (!hdr) return null;
+    var body = hdr.closest('.card') && hdr.closest('.card').querySelector('.card-body');
+    return {hdr: hdr, body: body};
+  };
+  var openBulk = async function(){
+    var b = bulk(); if (!b) throw new Error('Bulk status niet gevonden');
+    if (!b.body) { b.hdr.click(); await sleep(700); b = bulk(); }
+    if (!b.body) throw new Error('Bulk status gaat niet open');
+    return b.body;
+  };
+  /* Controleer klikken en wachten tot de rij van deze shop voldoet aan pred (of timeout). */
+  var bulkCheck = async function(body, id, pred, timeout){
+    var btn = $$('button', body).find(function(b){ return /Controleer/.test(txt(b)); }); btn.click();
+    var t0 = Date.now(), last = null;
+    await sleep(600);
+    while (Date.now() - t0 < (timeout || 10000)) {
+      var tr = $$('tbody tr', body).find(function(r){ return r.cells.length >= 3 && txt(r.cells[0]).slice(-(id.length + 2)) === '(' + id + ')'; });
+      if (tr) { last = {status: txt(tr.cells[1]), to: txt(tr.cells[2]), note: txt(tr.cells[3])}; if (!pred || pred(last)) return last; }
+      await sleep(400);
+      if (!tr && Date.now() - t0 > 4000 && $$('.alert', body).some(function(a){ return /\b0 shop/.test(txt(a)); })) return null;
+    }
+    return last;
+  };
+  var fillBulk = async function(c){
+    var body = await openBulk();
+    fire(body.querySelector('textarea'), c.id); fire(body.querySelector('select'), ENU[c.to]); fire(body.querySelector('input'), c.keepNote ? '' : (c.note || ''));
+    await sleep(300);
+    return body;
+  };
+  var applyOne = async function(c, dry){
+    if (!ENU[c.to]) return {ok: false, msg: 'onbekende status ' + c.to};
+    var body = await fillBulk(c);
+    var pre = await bulkCheck(body, c.id, function(r){ return r.to === c.to; });
+    if (!pre) return {ok: false, msg: 'shop niet gevonden in SUC'};
+    if (pre.status !== c.from) return {ok: false, msg: 'status is intussen ' + pre.status + ' (verwacht ' + c.from + '): overgeslagen'};
+    if (dry) return {ok: true, dry: true, msg: 'proef: ' + pre.status + ' → ' + pre.to};
+    var go = $$('button', body).find(function(b){ return /Zet \d+ shop/.test(txt(b)); });
+    if (!go || go.disabled) return {ok: false, msg: 'knop Zet om niet beschikbaar'};
+    go.click(); await sleep(1500);
+    body = await fillBulk(c);
+    var post = await bulkCheck(body, c.id, function(r){ return r.status === c.to; }, 20000);
+    if (post && post.status === c.to) return {ok: true, msg: 'opgeslagen en teruggelezen'};
+    return {ok: false, msg: 'na opslaan: ' + (post ? post.status : 'onbekend') + ' — controleer handmatig'};
+  };
+  var prepTicket = async function(t){
+    if (t.day) { await setDate(t.day); await ensureHideOff(); }
+    var tr = findRow(t.id); if (!tr) return 'shop staat niet in de tabel op ' + t.day;
+    var m = detailModal(); tr.click();
+    var t0 = Date.now(); while (Date.now() - t0 < 15000) { await sleep(200); if (shown(m) && txt(m.querySelector('.modal-title')).indexOf('(' + t.id + ')') >= 0 && m.querySelectorAll('tbody tr').length) break; }
+    var sel = $$('select', m).find(function(s){ return /subject/i.test(s.title || ''); });
+    if (sel) fire(sel, 'prices');
+    var n = 0;
+    $$('tbody tr', m).forEach(function(r){
+      var sp = r.cells[1] && r.cells[1].querySelector('span'); var cb = r.querySelector('input[type=checkbox]');
+      if (sp && cb && t.pids.indexOf(txt(sp)) >= 0 && !cb.checked) { cb.click(); n++; }
+    });
+    return 'shopdetails open: subject gekozen, ' + n + ' voorbeeld(en) aangevinkt. Controleer en klik zelf op Create Jira ticket.';
+  };
+  var job = null;
+  var showJob = function(j){
+    job = j;
+    var el = q('jobui'); q('job').textContent = 'Opdracht van ' + (j.by || 'de app') + ' (' + j.changes.length + ' statuswijziging(en), ' + (j.tickets || []).length + ' ticket(s)).';
+    var h = '<ul>' + j.changes.map(function(c, i){
+      return '<li><label><input type="checkbox" data-i="' + i + '" checked> <b>' + c.name.replace(/</g, '&lt;') + '</b> (' + c.id + '): ' + c.from + ' → <b>' + c.to + '</b></label><span class="s" id="r' + i + '"></span></li>';
+    }).join('') + '</ul>' +
+      '<label class="s"><input type="checkbox" id="dry"> Proef: alleen controleren, niets opslaan</label>' +
+      '<button class="x go" id="ap">Doorvoeren (' + j.changes.length + ')</button>';
+    if ((j.tickets || []).length) h += '<h4 style="margin-top:12px">Tickets voorbereiden</h4><ul>' + j.tickets.map(function(t, i){
+      return '<li>' + t.name.replace(/</g, '&lt;') + ' (' + t.id + ') <button class="x" data-t="' + i + '">Voorbereiden</button><div class="s" id="t' + i + '"></div></li>';
+    }).join('') + '</ul>';
+    el.innerHTML = h;
+    q('ap').onclick = async function(){
+      var dry = q('dry').checked, res = [];
+      q('ap').disabled = true;
+      for (var i = 0; i < job.changes.length; i++) {
+        var cb = el.querySelector('input[data-i="' + i + '"]'); var c = job.changes[i];
+        if (!cb.checked) { res.push({id: c.id, to: c.to, ok: false, skipped: true, msg: 'niet aangevinkt'}); continue; }
+        q('r' + i).textContent = ' …';
+        var r; try { r = await applyOne(c, dry); } catch (e) { r = {ok: false, msg: e.message}; }
+        r.id = c.id; r.to = c.to; res.push(r);
+        q('r' + i).className = r.ok ? 'ok' : 'bad'; q('r' + i).textContent = ' ' + (r.ok ? '✓ ' : '✗ ') + r.msg;
+      }
+      var ok = res.filter(function(r){ return r.ok && !r.dry; }).length;
+      var msg = {kind: 'suc-applied', v: V, dry: dry, at: new Date().toISOString(), results: res};
+      var sent = toApp(msg);
+      log((dry ? 'Proef klaar' : ok + ' van ' + res.length + ' doorgevoerd') + (sent ? ', resultaat naar de app gestuurd.' : '. Kopieer het resultaat naar de app.'), ok || dry ? 'ok' : 'warn');
+      if (!sent) { var b = document.createElement('button'); b.className = 'x'; b.textContent = 'Kopieer resultaat'; b.onclick = function(){ copy(JSON.stringify(msg)); b.textContent = 'Gekopieerd'; }; el.appendChild(b); }
+      q('ap').disabled = false;
+    };
+    $$('button[data-t]', el).forEach(function(b){
+      b.onclick = async function(){ var i = +b.getAttribute('data-t'); q('t' + i).textContent = 'bezig…'; try { q('t' + i).textContent = await prepTicket(job.tickets[i]); } catch (e) { q('t' + i).textContent = 'Fout: ' + e.message; } };
+    });
+  };
+  q('jp').addEventListener('input', function(){
+    try { var j = JSON.parse(q('jp').value); if (j && j.kind === 'suc-job') { showJob(j); q('jp').value = ''; } } catch (e) {}
+  });
+  window.addEventListener('message', function(e){
+    if (e.source !== window.opener) return;
+    var d = e.data; if (d && d.kind === 'suc-job') { api.show(); showJob(d); }
+  });
+}
+
+/* ================================================================
+   REGELS — beslisladder N0–N8, hercontrole H1–H12, ticketregels
+   ================================================================ */
+const STATUSES = ['(not set yet)','OK','Ignore','Recheck','Research','Shop Issue','Beslist Issue','Dataedis Issue','Dataedis issue - not yet reported'];
+const NYR = 'Dataedis issue - not yet reported';
+const OUT_OF_KPI = s => s === 'Dataedis Issue' || s === NYR;
+const T = {rate: 0.93, fetchLow: 0.30, fetchOk: 0.70, inv: 0.80, minPriced: 10};
+
+const RULES = {
+  N0: {t:'Te weinig data', d:'Minder dan 3 samples in het venster. Wacht op meer metingen.'},
+  N1: {t:'Varianten op één URL', d:'Verschillende varianten delen één URL. Dataedis kan dan niet zien welke variantprijs hoort, dus de shop telt niet mee.'},
+  N2: {t:'Affiliate', d:'Affiliates tellen niet mee in de KPI en staan standaard op OK.'},
+  N3: {t:'Fetch < 30%', d:'Dataedis kan de meeste pagina\'s niet openen of uitlezen (blokkade, proxyfout, geen productpagina).'},
+  N4: {t:'Voorraad ≥ 80%', d:'Bijna alles staat als "niet op voorraad". Meestal leest Dataedis de voorraad verkeerd. Steekproef op de site is verplicht.'},
+  N5: {t:'Verdachte uitlezing', d:'De meeste afwijkingen zijn een factor > 3. Dataedis leest waarschijnlijk een ander bedrag uit (stukprijs, onzinbedrag).'},
+  N6: {t:'Alleen timing', d:'Alle afwijkingen zijn timing: de feed was al goed, Beslist toonde nog een oude prijs.'},
+  N7: {t:'Prijs ≤ 93%', d:'Echte verschillen tussen de prijs op Beslist en op de site. Shop Issue, en bij genoeg voorbeelden een CMDASH-ticket.'},
+  N8: {t:'Prijs > 93%', d:'De prijzen kloppen. Status OK.'},
+  H1: {t:'OK, maar prijs ≤ 93%', d:'Status OK, maar de prijzen kloppen niet meer.'},
+  H2: {t:'OK, maar uitleesfout', d:'Status OK, maar vrijwel alle afwijkingen zijn verdacht (factor > 3) of er klopt niets: Dataedis leest verkeerd.'},
+  H3: {t:'OK, maar fetch < 30%', d:'Status OK, maar Dataedis kan de pagina\'s niet meer uitlezen.'},
+  H4: {t:'Shop Issue opgelost', d:'Prijs nu > 93%. Terug naar OK en het ticket laten weten dat het is opgelost.'},
+  H5: {t:'Ticket dicht, probleem niet', d:'Het CMDASH-ticket is gesloten, maar de prijzen kloppen nog steeds niet. Vervolgticket.'},
+  H6: {t:'Shop Issue zonder ticket', d:'Langer dan 14 dagen Shop Issue zonder ticket.'},
+  H7: {t:'Dataedis Issue hersteld', d:'Fetch en prijs zijn weer goed. Terug naar OK: de shop telt weer mee in de KPI.'},
+  H8: {t:'Dataedis: fetch hersteld, prijs niet', d:'Dataedis kan weer uitlezen, maar de prijzen kloppen niet. Echte prijsfout of uitleesfout?'},
+  H9: {t:'Not yet reported: hersteld', d:'Geen variantprobleem en de metingen zijn goed. Terug naar OK.'},
+  H10:{t:'Not yet reported > 14 dagen', d:'Deze status is een wachtkamer. Meld de shop bij Dataedis en zet hem op Dataedis Issue.'},
+  H11:{t:'Beslist Issue > 30 dagen', d:'Is de interne oorzaak opgelost? Dan opnieuw door de beslisboom.'},
+  H12:{t:'Tussenstatus > 14 dagen', d:'Recheck, Research of Ignore staat al lang. Opnieuw door de beslisboom.'}
+};
+const NEW_ORDER = ['N0','N1','N2','N3','N4','N5','N6','N7','N8'];
+const HER_ORDER = ['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12'];
+
+function kind(p){
+  const s = p.shop ?? 0, b = p.bes ?? 0, diff = Math.abs(s - b), ratio = b ? s / b : 0;
+  if (diff <= 0.10 || (b && diff / b <= 0.005)) return 'afronding';
+  if (p.timing) return 'timing';
+  if (ratio < 1/3 || ratio > 3) return 'verdacht';
+  return 'echt';
+}
+
+function metrics(shop, days){
+  let ok = 0, mm = 0, inv = 0, n = 0; const errs = {}, pairs = [], perDay = []; let missing = 0;
+  for (const d of days){
+    const c = shop.days?.[d]; if (!c) continue;
+    ok += c.ok; mm += c.mm; inv += c.inv; n += c.n;
+    for (const [k, v] of Object.entries(c.errs || {})) errs[k] = (errs[k] || 0) + v;
+    const pr = (c.rows || []).filter(r => r.msg === 'Price MISMATCH').map(r => ({...r, day: d, k: kind(r)}));
+    if (c.mm > 0 && !c.rows) missing += c.mm;
+    pairs.push(...pr);
+    const tim = pr.filter(p => p.k === 'timing').length;
+    const den = c.ok + c.mm - tim;
+    perDay.push({d, ok: c.ok, mm: c.mm, inv: c.inv, n: c.n, priced: c.ok + c.mm, rate: den > 0 ? c.ok / den : null});
+  }
+  const cnt = {echt:0, afronding:0, verdacht:0, timing:0}; pairs.forEach(p => cnt[p.k]++);
+  const tim = cnt.timing, fetched = ok + mm + inv, priced = ok + mm, nonTim = mm - tim;
+  const topErr = Object.entries(errs).sort((a, b) => b[1] - a[1])[0];
+  const pidSeen = {}; let repeats = 0; pairs.forEach(p => { if (pidSeen[p.pid]) repeats++; pidSeen[p.pid] = 1; });
+  return {ok, mm, inv, n, fetched, priced, tim, nonTim, cnt, pairs, perDay, missing, repeats,
+    fetch: n ? fetched / n : 0, invShare: fetched ? inv / fetched : 0,
+    rate: (ok + mm - tim) > 0 ? ok / (ok + mm - tim) : null,
+    topErr: topErr ? `${topErr[0]} (${topErr[1]}×)` : 'foutmeldingen'};
+}
+
+function pct(x, d = 1){ return x == null ? '–' : (x * 100).toFixed(d).replace('.', ',') + '%'; }
+function eur(x){ return x == null ? '–' : '€' + x.toFixed(2).replace('.', ','); }
+function ddmm(iso){ const [y, m, d] = iso.split('-'); return `${d}-${m}`; }
+function nlDate(iso){ const [y, m, d] = iso.split('-'); return `${+d} ${['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][m - 1]}`; }
+function ageDays(dmy, todayIso){
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dmy || ''); if (!m) return null;
+  return Math.round((Date.parse(todayIso) - Date.parse(`${m[3]}-${m[2]}-${m[1]}`)) / 864e5);
+}
+const variantNote = note => /variant/i.test(note || '') && /(zelfde|dezelfde|same)\s+url/i.test(note || '');
+
+function pattern(pairs){
+  const f = pairs.filter(p => p.k !== 'timing');
+  if (!f.length) return {key:'', text:'', prio:''};
+  if (f.every(p => p.k === 'afronding')) {
+    const mx = Math.max(...f.map(p => Math.abs(p.shop - p.bes)));
+    return {key:'afronding', text:`Afrondingsverschillen van €0,01–${mx.toFixed(2).replace('.', ',')}`, prio:'Laag'};
+  }
+  const echt = f.filter(p => p.k === 'echt');
+  if (echt.length){
+    const r = echt.map(p => p.shop / p.bes);
+    if (r.length >= 5 && r.filter(x => x >= 1.17 && x <= 1.27).length / r.length >= 0.7)
+      return {key:'btw', text:'Site structureel ~21% hoger: mogelijk prijs excl. btw of andere landprijs in de feed', prio:'Hoog'};
+    if (r.filter(x => x > 1).length > r.length / 2)
+      return {key:'te-laag', text:'Beslist toont een te lage prijs (site overwegend hoger)', prio:'Hoog'};
+    if (r.filter(x => x >= 0.5 && x <= 0.9).length >= r.length / 2)
+      return {key:'korting', text:'Actie/korting op de site niet in de feed (site 10–50% lager); controleer of de feed de van-prijs bevat', prio:'Midden'};
+    return {key:'site-lager', text:'Site overwegend lager dan Beslist', prio:'Midden'};
+  }
+  return {key:'verdacht', text:'Vooral verdachte uitlezingen', prio:''};
+}
+
+function suspectHint(pairs){
+  const v = pairs.filter(p => p.k === 'verdacht' && p.shop > 0 && p.bes > 0);
+  if (!v.length) return '';
+  if (v.filter(p => p.shop <= 10 && p.bes >= 100).length / v.length >= 0.7) return 'Dataedis leest een onzinbedrag (€1–10) bij producten van honderden euro\'s';
+  // constante factor = verpakkingsaantal (bijv. doos van 6): zelfde gehele factor, max 24, bij ≥ 70% van de verdachte afwijkingen
+  const fac = {};
+  v.forEach(p => { const r = p.bes / p.shop, k = Math.round(r); if (k >= 2 && k <= 24 && Math.abs(r - k) / k < 0.02) fac[k] = (fac[k] || 0) + 1; });
+  const best = Object.entries(fac).sort((a, b) => b[1] - a[1])[0];
+  if (best && best[1] / v.length >= 0.7) return `constante factor ×${best[0]}: verkoopt de shop per doos/set? Dan leest Dataedis de stukprijs`;
+  return '';
+}
+
+function examples(m){
+  let f = m.pairs.filter(p => p.k === 'echt' || p.k === 'afronding');
+  // bij voorkeur 3 voorbeelden van één dag: dan kan SUC ze aanvinken voor 'Create Jira ticket'
+  const byDay = {}; f.forEach(p => (byDay[p.day] = byDay[p.day] || {})[p.pid] = 1);
+  const day = Object.keys(byDay).sort().reverse().find(d => Object.keys(byDay[d]).length >= 3);
+  if (day) f = f.filter(p => p.day === day);
+  const seen = {}, out = [];
+  const score = p => (p.k === 'echt' ? 1000 : 0) + Math.abs(p.shop - p.bes) / (p.bes || 1) * 100 - (/[|_]/.test(p.ext) && p.ext.length > 14 ? 50 : 0);
+  for (const p of f.slice().sort((a, b) => score(b) - score(a))) { if (seen[p.pid]) continue; seen[p.pid] = 1; out.push(p); if (out.length === 3) break; }
+  return out;
+}
+
+function ticketPlan(shop, m, toStatus){
+  if (toStatus !== 'Shop Issue') return null;
+  const reasons = [];
+  if (shop.aff) reasons.push('affiliate');
+  if (m.priced < T.minPriced) reasons.push(`maar ${m.priced} prijzen (min. 10)`);
+  if (m.fetch < T.fetchLow) reasons.push('fetch < 30%');
+  if (m.rate == null || m.rate > T.rate) reasons.push('prijs > 93%');
+  const last3 = m.perDay.filter(d => d.priced > 0).slice(-3);
+  const bad = last3.filter(d => d.rate != null && d.rate <= T.rate).length;
+  const measured = last3.length;
+  if (measured >= 2 && bad < 2) reasons.push(`niet aanhoudend (${bad} van ${measured} dagen ≤ 93%)`);
+  const ex = examples(m);
+  if (ex.length < 3) reasons.push(`maar ${ex.length} bruikbare voorbeelden`);
+  const pat = pattern(m.pairs);
+  if (reasons.length) return {action: 'geen', reasons, pat, ex};
+  if (shop.jira && !shop.jira.closed) return {action: 'comment', key: shop.jira.key, pat, ex};
+  if (shop.jira && shop.jira.closed) return {action: 'vervolg', key: shop.jira.key, pat, ex};
+  return {action: 'nieuw', pat, ex};
+}
+
+/* Ladder §2: (not set yet) en herbeoordeling. Geeft {rule, to, note, why[], flags[], check} */
+function ladder(shop, m){
+  const why = [], flags = [], P = (t) => why.push({t, c:'pass'}), H = (t) => why.push({t, c:'hit'});
+  if (m.n < 3){ H(`${m.n} sample(s) in het venster`); return {rule:'N0', to:null, note:'', why, flags}; }
+  P(`${m.n} samples`);
+  const sameUrl = (shop.same || []).filter(s => s.exts.length >= 2);
+  const strongSame = sameUrl.length >= 2 || sameUrl.some(s => s.exts.length >= 3);
+  if (sameUrl.length && !strongSame) flags.push({t:'1 URL gedeeld door 2 producten', c:''});
+  if (variantNote(shop.note) || strongSame){
+    if (variantNote(shop.note)) H('Note: varianten op dezelfde URL');
+    else H(`${sameUrl.length} URL('s) gedeeld door verschillende producten`);
+    return {rule:'N1', to:NYR, note:'Varianten op dezelfde URL: niet meegenomen in SUC', why, flags,
+      check: variantNote(shop.note) ? null : 'Open twee producten met dezelfde URL (zie hieronder). Verandert de URL niet als je een andere variant kiest? Dan klopt dit voorstel. Anders: kies de status die de prijzen rechtvaardigen.',
+      sameUrl};
+  }
+  P('geen variantprobleem gezien');
+  if (shop.aff){ H('affiliate'); return {rule:'N2', to:'OK', note:'Affiliate: telt niet mee in KPI', why, flags}; }
+  P('geen affiliate');
+  if (m.fetch < T.fetchLow){ H(`fetch ${pct(m.fetch, 0)}`); return {rule:'N3', to:NYR, note:`Fetch ${pct(m.fetch, 0)} – ${m.topErr} (n=${m.n})`, why, flags}; }
+  P(`fetch ${pct(m.fetch, 0)}`);
+  if (m.fetched && m.invShare >= T.inv){
+    H(`${pct(m.invShare, 0)} Inventory MISMATCH`);
+    return {rule:'N4', to:NYR, note:`${pct(m.invShare, 0)} Inventory MISMATCH (${m.inv}/${m.fetched}): voorraad niet goed uitgelezen`, why, flags,
+      check:'Open 2–3 producten (links hieronder): staan ze op de site op voorraad? Ja → Dataedis leest verkeerd (dit voorstel). Nee → het is een echte voorraadfout: kies Shop Issue.'};
+  }
+  P(`voorraad-afwijking ${pct(m.invShare, 0)}`);
+  if (m.nonTim > 0 && m.cnt.verdacht / m.nonTim >= 0.5){
+    const hint = suspectHint(m.pairs);
+    H(`${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3`);
+    return {rule:'N5', to:NYR, note:`Verdachte uitlezing: ${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3${hint ? '; ' + hint : ''}`, why, flags, hint,
+      check:'Vergelijk de prijs op de pagina met Beslist. Toont de site de Beslist-prijs (of verkoopt de shop per doos/set)? Dan leest Dataedis verkeerd: dit voorstel. Toont de site echt een andere prijs: kies Shop Issue.'};
+  }
+  P('uitlezing niet verdacht');
+  const timingMatters = m.mm > 0 && m.tim === m.mm && m.tim >= 3 && m.priced && (m.ok / m.priced) <= T.rate;
+  if (timingMatters){
+    H(`alle ${m.tim} afwijkingen zijn timing`);
+    return {rule:'N6', to:'Beslist Issue', note:'Alle afwijkingen timing: realtime prijsupdate kwam niet in de index', why, flags,
+      check:'Zoek 1–2 producten op beslist.nl. Toont Beslist nu de juiste prijs? Kies dan OK. Nog de oude prijs? Dan klopt Beslist Issue.'};
+  }
+  addEdges(m, flags);
+  if (m.rate != null && m.rate <= T.rate){
+    const pat = pattern(m.pairs);
+    H(`prijs excl. timing ${pct(m.rate)} op ${m.priced} prijzen`);
+    const parts = ['echt','afronding','verdacht'].filter(k => m.cnt[k]).map(k => `${m.cnt[k]} ${k}`).join(', ');
+    return {rule:'N7', to:'Shop Issue', note:`Prijs ${pct(m.rate)} op ${m.priced} prijzen${parts ? ' (' + parts + ')' : ''}${pat.text ? '; ' + pat.text : ''}`, why, flags, pat};
+  }
+  H(m.rate == null ? 'geen prijsafwijkingen te beoordelen' : `prijs excl. timing ${pct(m.rate)} op ${m.priced} prijzen`);
+  return {rule:'N8', to:'OK', note: m.rate == null ? 'Auto: geen prijzen gemeten' : `Auto: prijs ${pct(m.rate)} op ${m.priced} prijzen`, why, flags};
+}
+function addEdges(m, flags){
+  if (m.priced < T.minPriced) flags.push({t:`weinig prijzen (${m.priced})`, c:'warn'});
+  if (m.fetch >= T.fetchLow && m.fetch < T.fetchOk) flags.push({t:`fetch ${pct(m.fetch, 0)}`, c:'warn'});
+  if (m.tim) flags.push({t:`${m.tim} timing`, c:''});
+  if (m.rate != null && m.rate >= 0.90 && m.rate <= 0.95) flags.push({t:'dicht bij 93%', c:'warn'});
+  if (m.repeats) flags.push({t:`${m.repeats}× zelfde product opnieuw fout`, c:''});
+  if (m.missing) flags.push({t:`${m.missing} afwijkingen zonder details`, c:'warn'});
+}
+
+/* Hercontrole §3 voor shops die al een status hebben */
+function recheck(shop, m, today){
+  const S = shop.status, age = ageDays(shop.lastReviewed, today), why = [], flags = [];
+  const H = t => why.push({t, c:'hit'}), P = t => why.push({t, c:'pass'});
+  const enough = m.priced >= T.minPriced;
+  const base = `Huidige status ${S}${age != null ? `, ${age} dagen geleden gezet` : ''}`;
+  P(base);
+  if (S === 'OK'){
+    if (m.n >= 10 && m.fetch < T.fetchLow){ H(`fetch ${pct(m.fetch, 0)}`); return {rule:'H3', to:NYR, note:`Fetch ${pct(m.fetch, 0)} – ${m.topErr} (n=${m.n})`, why, flags}; }
+    if (enough && m.nonTim >= 5 && (m.cnt.verdacht / m.nonTim >= 0.5 || m.ok === 0)){
+      const hint = suspectHint(m.pairs); H(m.ok === 0 ? `0 van ${m.priced} prijzen goed` : `${m.cnt.verdacht} van ${m.nonTim} afwijkingen factor > 3`);
+      return {rule:'H2', to:NYR, note:`Uitleesfout: ${m.ok}/${m.priced} prijzen goed, ${m.cnt.verdacht} verdacht${hint ? '; ' + hint : ''}`, why, flags, hint,
+        check:'Open 2–3 producten: toont de site de Beslist-prijs? Dan leest Dataedis verkeerd (dit voorstel). Anders: kies Shop Issue.'};
+    }
+    if (enough && m.rate != null && m.rate <= T.rate){
+      addEdges(m, flags); const pat = pattern(m.pairs);
+      H(`prijs excl. timing ${pct(m.rate)} op ${m.priced} prijzen`);
+      return {rule:'H1', to:'Shop Issue', note:`Hercontrole: prijs ${pct(m.rate)} op ${m.priced} prijzen${pat.text ? '; ' + pat.text : ''}`, why, flags, pat};
+    }
+    return null;
+  }
+  if (S === 'Shop Issue'){
+    if (enough && m.rate != null && m.rate > T.rate){
+      addEdges(m, flags); H(`prijs nu ${pct(m.rate)} op ${m.priced} prijzen`);
+      return {rule:'H4', to:'OK', note:`Hercontrole: prijs ${pct(m.rate)} op ${m.priced} prijzen, opgelost${shop.jira ? ' (' + shop.jira.key + ')' : ''}`, why, flags,
+        jira: shop.jira && !shop.jira.closed ? {action:'opgelost', key: shop.jira.key} : null};
+    }
+    if (shop.jira && shop.jira.closed && enough && m.rate != null && m.rate <= T.rate){
+      H(`${shop.jira.key} is gesloten, prijs nog ${pct(m.rate)}`);
+      return {rule:'H5', to:'Shop Issue', keep:true, note:`Hercontrole: prijs ${pct(m.rate)}, vervolg op ${shop.jira.key}`, why, flags, forceTicket:true};
+    }
+    if (!shop.jira && age != null && age > 14){
+      H(`${age} dagen Shop Issue zonder ticket`);
+      return {rule:'H6', to:'Shop Issue', keep:true, note:'', why, flags, forceTicket:true};
+    }
+    return null;
+  }
+  if (S === 'Dataedis Issue'){
+    if (m.fetch >= T.fetchOk && enough && m.rate != null && m.rate > T.rate){
+      H(`fetch ${pct(m.fetch, 0)}, prijs ${pct(m.rate)} op ${m.priced} prijzen`);
+      return {rule:'H7', to:'OK', note:`Hercontrole: fetch ${pct(m.fetch, 0)}, prijs ${pct(m.rate)}: Dataedis-probleem opgelost`, why, flags};
+    }
+    if (m.fetch >= T.fetchOk && enough && m.rate != null && m.rate <= T.rate){
+      addEdges(m, flags); H(`fetch ${pct(m.fetch, 0)}, maar prijs ${pct(m.rate)}`);
+      return {rule:'H8', to:'Shop Issue', note:`Hercontrole: fetch hersteld, prijs ${pct(m.rate)} op ${m.priced} prijzen`, why, flags, pat: pattern(m.pairs),
+        check:'Open 2–3 afwijkingen hieronder. Toont de site echt een andere prijs dan Beslist? Dan Shop Issue (dit voorstel). Leest Dataedis een verkeerd bedrag? Kies Dataedis issue - not yet reported.'};
+    }
+    return null;
+  }
+  if (S === NYR){
+    if (variantNote(shop.note)) return null;
+    if (m.fetch >= T.fetchOk && enough && m.rate != null && m.rate > T.rate){
+      H(`fetch ${pct(m.fetch, 0)}, prijs ${pct(m.rate)} op ${m.priced} prijzen`);
+      return {rule:'H9', to:'OK', note:`Hercontrole: fetch ${pct(m.fetch, 0)}, prijs ${pct(m.rate)}`, why, flags};
+    }
+    if (age != null && age > 14){
+      H(`${age} dagen op not yet reported`);
+      return {rule:'H10', to:'Dataedis Issue', keep:true, note:'', why, flags,
+        check:'Meld de shop eerst in de Dataedis-sheet (soort: fetch, prijs, voorraad of variant). Vink daarna aan.'};
+    }
+    return null;
+  }
+  const L = ladder(shop, m);
+  if (S === 'Beslist Issue' && age != null && age > 30 && L.to && L.to !== S){
+    H(`${age} dagen Beslist Issue; beslisboom zegt nu ${L.rule}`);
+    return {...L, rule:'H11', why: why.concat(L.why), check:'Is de interne oorzaak (story) opgelost? Alleen dan dit voorstel volgen.'};
+  }
+  if (['Recheck','Research','Ignore'].includes(S) && age != null && age > 14 && L.to && L.to !== S){
+    H(`${age} dagen ${S}; beslisboom zegt nu ${L.rule}`);
+    return {...L, rule:'H12', why: why.concat(L.why)};
+  }
+  return null;
+}
+
+/* ================================================================
+   APP-STATE
+   ================================================================ */
+let S = {data:null, dec:{}, applied:{}, settings:{name:''}};
+let VIEW = {step:1, filter:'open', node:null, open:{}};
+let ITEMS = [];
+let sucWin = null, collectorReady = false;
+
+function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { try { localStorage.setItem(LS_KEY, JSON.stringify({...S, data:null})); } catch (_) {} } }
+function load(){ try { const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (s && s.data) S = {dec:{}, applied:{}, settings:{name:''}, ...s}; } catch (e) {} }
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
+function toast(t){ const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), 2600); }
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
+  const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); return ok;
+}
+function stClass(s){ return s === 'OK' ? 's-ok' : s === 'Shop Issue' ? 's-shop' : OUT_OF_KPI(s) ? 's-data' : s === 'Beslist Issue' ? 's-besl' : ''; }
+function stPill(s){ return `<span class="st ${stClass(s)}">${esc(s || 'wachten')}</span>`; }
+
+function buildItems(){
+  const D = S.data; if (!D) { ITEMS = []; return; }
+  const today = D.today, items = [];
+  for (const shop of Object.values(D.shops)){
+    const m = metrics(shop, D.days);
+    let ev = null, group;
+    if (shop.status === '(not set yet)'){ ev = ladder(shop, m); group = 'nieuw'; }
+    else if (D.scope === 'all' && !shop.aff){ ev = recheck(shop, m, today); group = 'her'; }
+    if (!ev) continue;
+    if (ev.to === shop.status && !ev.forceTicket && !ev.keep) continue;
+    const tp = ev.to === 'Shop Issue' ? ticketPlan(shop, m, 'Shop Issue') : null;
+    items.push({id: shop.id, shop, m, ev, group, tp});
+  }
+  const order = [...NEW_ORDER, ...HER_ORDER];
+  items.sort((a, b) => order.indexOf(a.ev.rule) - order.indexOf(b.ev.rule) || (b.shop.clicks || 0) - (a.shop.clicks || 0));
+  ITEMS = items;
+}
+
+function decOf(it){ return S.dec[it.id] || {state:'open'}; }
+function finalTo(it){ const d = decOf(it); return d.to || it.ev.to; }
+function needsChange(it){ const d = decOf(it); return finalTo(it) !== it.shop.status || (!d.keepNote && !!finalNote(it)); }
+function finalNote(it){
+  const d = decOf(it);
+  if (d.note != null) return d.note;
+  return it.ev.note ? `${ddmm(S.data.today)}: ${it.ev.note}` : '';
+}
+function isActive(it){ const d = decOf(it); return d.state === 'approved' || d.state === 'changed'; }
+
+/* ---------- KPI ---------- */
+function kpiDay(){ const D = S.data; return D.days[D.days.length - 1]; }
+function kpiSum(over){
+  const D = S.data, day = kpiDay(); let num = 0, den = 0;
+  for (const s of Object.values(D.shops)){
+    const c = s.days[day]; if (!c || s.aff) continue;
+    const st = over && over[s.id] != null ? over[s.id] : s.status;
+    if (OUT_OF_KPI(st)) continue;
+    num += c.ok; den += c.ok + c.mm + c.inv;
+  }
+  return {num, den, r: den ? num / den : null};
+}
+function kpiDeltaFor(overrides){
+  const a = kpiSum(null), b = kpiSum(overrides);
+  return (a.r == null || b.r == null) ? 0 : (b.r - a.r) * 100;
+}
+function itemKpi(it, to){
+  to = to ?? finalTo(it);
+  if (!to || it.shop.aff || OUT_OF_KPI(it.shop.status) === OUT_OF_KPI(to)) return null;
+  const c = it.shop.days[kpiDay()];
+  const fetched = c ? c.ok + c.mm + c.inv : 0;
+  if (!fetched) return null;
+  return {dir: OUT_OF_KPI(to) ? 'uit' : 'in', pp: kpiDeltaFor({[it.id]: to}), fetched, ok: c ? c.ok : 0};
+}
+
+/* ================================================================
+   RENDER
+   ================================================================ */
+function setStep(n){
+  VIEW.step = n;
+  document.querySelectorAll('.steps button').forEach(b => b.setAttribute('aria-current', String(+b.dataset.step === n)));
+  [1, 2, 3].forEach(i => $('step' + i).classList.toggle('hidden', i !== n));
+  render(); window.scrollTo(0, 0);
+}
+
+function render(){
+  const D = S.data;
+  $('ver').textContent = ' v' + APP_VERSION;
+  document.querySelector('.steps [data-step="2"]').disabled = !D;
+  document.querySelector('.steps [data-step="3"]').disabled = !D;
+  if (D){
+    const when = new Date(D.collectedAt);
+    $('stamp').textContent = `${D.demo ? 'Voorbeelddata' : 'SUC Report'} · ${nlDate(D.days[0])} – ${nlDate(D.days[D.days.length - 1])} · opgehaald ${when.toLocaleString('nl-NL', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}`;
+  }
+  const open = ITEMS.filter(it => decOf(it).state === 'open' && it.ev.to).length;
+  const appr = ITEMS.filter(it => isActive(it) && !S.applied[it.id]).length;
+  $('cntOpen').textContent = open; $('cntApproved').textContent = appr;
+  renderImpact();
+  if (VIEW.step === 2) renderReview();
+  if (VIEW.step === 3) renderApply();
+}
+
+function renderImpact(){
+  const el = $('impact'), D = S.data;
+  if (!D){ el.innerHTML = `<div class="icard"><h4>Effect van je werk</h4><p class="small muted">Hier zie je straks wat je besluiten doen met de werkvoorraad, de SUC-KPI en het aantal Jira-tickets.</p></div>`; return; }
+  const shops = Object.values(D.shops);
+  const now = {}, after = {}, allAfter = {};
+  shops.forEach(s => { now[s.id] = s.status; after[s.id] = s.status; allAfter[s.id] = s.status; });
+  ITEMS.forEach(it => { if (isActive(it) && finalTo(it)) after[it.id] = finalTo(it); if (it.ev.to) allAfter[it.id] = it.ev.to; });
+  const count = (map, st) => Object.values(map).filter(x => x === st).length;
+  const nsNow = count(now, '(not set yet)'), nsAfter = count(after, '(not set yet)');
+  const total = ITEMS.filter(it => it.ev.to).length, decided = ITEMS.filter(it => it.ev.to && decOf(it).state !== 'open').length;
+  const her = ITEMS.filter(it => it.group === 'her'), herOpen = her.filter(it => decOf(it).state === 'open').length;
+
+  const day = kpiDay(), off = D.kpi?.[day];
+  const base = kpiSum(null), aft = kpiSum(after), all = kpiSum(allAfter);
+  const diff = (x) => (x.r == null || base.r == null) ? 0 : (x.r - base.r) * 100;
+  const dpp = diff(aft), dall = diff(all);
+  const offR = off && off.den ? off.num / off.den : base.r;
+  // deel van het effect dat komt doordat shops de KPI uit gaan
+  const outOnly = {}; shops.forEach(s => outOnly[s.id] = s.status);
+  ITEMS.forEach(it => { if (isActive(it) && finalTo(it) && OUT_OF_KPI(finalTo(it)) && !OUT_OF_KPI(it.shop.status)) outOnly[it.id] = finalTo(it); });
+  const outPP = diff(kpiSum(outOnly));
+  const fmtpp = x => (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x).toFixed(2).replace('.', ',') + ' pp';
+  const cls = x => Math.abs(x) < 0.005 ? 'zero' : x > 0 ? 'up' : 'down';
+
+  const tick = {nieuw:0, vervolg:0, comment:0, opgelost:0};
+  ITEMS.forEach(it => { if (!isActive(it)) return; const j = jiraFor(it); if (j && tick[j.action] != null) tick[j.action]++; });
+  const tickAll = {nieuw:0, vervolg:0, comment:0, opgelost:0};
+  ITEMS.forEach(it => { const j = jiraFor(it, it.ev.to); if (j && tickAll[j.action] != null) tickAll[j.action]++; });
+
+  el.innerHTML = `
+  <div class="icard"><h4>Werkvoorraad</h4>
+    <div class="irow"><span>(not set yet)</span><b>${nsNow} → ${nsAfter}</b></div>
+    ${D.scope === 'all' ? `<div class="irow"><span>Hercontrole open</span><b>${herOpen} van ${her.length}</b></div>` : ''}
+    <div class="irow"><span>Beoordeeld</span><b>${decided} van ${total}</b></div>
+    <div class="progress"><i style="width:${total ? decided / total * 100 : 0}%"></i></div>
+    <div class="inote">Doorgevoerd in SUC: ${Object.keys(S.applied).length}</div>
+  </div>
+  <div class="icard"><h4>SUC-KPI · ${nlDate(day)}</h4>
+    <div><span class="big">${pct(offR)}</span><span class="delta ${cls(dpp)}">${fmtpp(dpp)}</span></div>
+    <div class="inote">Officiële KPI van die dag${off ? ` (${off.num.toLocaleString('nl-NL')} / ${off.den.toLocaleString('nl-NL')})` : ''}, met het effect van jouw besluiten.</div>
+    ${Math.abs(outPP) >= 0.005 ? `<div class="msg warn" style="margin:8px 0 0">Waarvan ${fmtpp(outPP)} doordat shops de KPI <b>uit</b> gaan (Dataedis-status). Alleen doen als de fout aantoonbaar bij Dataedis ligt.</div>` : ''}
+    <div class="inote">Als alle voorstellen worden gevolgd: ${fmtpp(dall)}.</div>
+  </div>
+  <div class="icard"><h4>Jira (CMDASH)</h4>
+    <div class="irow"><span>Nieuwe tickets</span><b>${tick.nieuw}</b></div>
+    <div class="irow"><span>Vervolgtickets</span><b>${tick.vervolg}</b></div>
+    <div class="irow"><span>Comments op open ticket</span><b>${tick.comment + tick.opgelost}</b></div>
+    <div class="inote">Bij alle voorstellen: ${tickAll.nieuw} nieuw, ${tickAll.vervolg} vervolg, ${tickAll.comment + tickAll.opgelost} comment.</div>
+  </div>`;
+}
+
+function jiraFor(it, to){
+  to = to ?? finalTo(it);
+  if (it.ev.jira && to === it.ev.to) return it.ev.jira;            // H4: opgelost-comment
+  if (to !== 'Shop Issue') return null;
+  const tp = ticketPlan(it.shop, it.m, 'Shop Issue');
+  if (!tp) return null;
+  if (tp.action === 'geen' && it.ev.forceTicket){
+    if (it.shop.jira && it.shop.jira.closed) return {...tp, action:'vervolg', key: it.shop.jira.key};
+    if (!it.shop.jira) return {...tp, action:'nieuw'};
+  }
+  return tp.action === 'geen' ? null : tp;
+}
+
+function renderReview(){
+  const D = S.data;
+  const counts = {}; ITEMS.forEach(it => counts[it.ev.rule] = (counts[it.ev.rule] || 0) + 1);
+  const nNew = ITEMS.filter(it => it.group === 'nieuw').length, nHer = ITEMS.filter(it => it.group === 'her').length;
+  $('lede2').innerHTML = `${nNew} shop(s) op <i>(not set yet)</i>${D.scope === 'all' ? ` en ${nHer} shop(s) waarvan de status mogelijk niet meer klopt` : ''}. Venster: ${nlDate(D.days[0])} – ${nlDate(D.days[D.days.length - 1])} (${D.days.length} volle dagen). Per shop zie je het voorstel, de reden en wat het doet met de KPI.`;
+  const node = r => `<button class="node ${counts[r] ? '' : 'zero'}" data-node="${r}" aria-pressed="${VIEW.node === r}"><b>${r}</b>${esc(RULES[r].t)}<span class="n">${counts[r] || 0}</span></button>`;
+  $('treeNew').innerHTML = `<span class="small muted" style="align-self:center;margin-right:4px">Nieuw:</span>` + NEW_ORDER.map(node).join('');
+  const herNodes = HER_ORDER.filter(r => counts[r] || VIEW.node === r);
+  $('treeHer').innerHTML = D.scope === 'all' ? `<span class="small muted" style="align-self:center;margin-right:4px">Hercontrole:</span>` +
+    (herNodes.length ? herNodes.map(node).join('') : '<span class="small muted" style="align-self:center">geen statussen die herzien moeten worden</span>') +
+    (herNodes.length < HER_ORDER.length ? `<span class="small muted" style="align-self:center">+ ${HER_ORDER.length - herNodes.length} regels zonder shops (zie Uitleg)</span>` : '') : '';
+  $('treeHint').textContent = VIEW.node ? `${VIEW.node} · ${RULES[VIEW.node].d}` : 'Tip: beweeg over een stap voor de uitleg.';
+
+  const F = [['open','Te beoordelen'],['check','Controle nodig'],['approved','Akkoord'],['changed','Aangepast'],['skipped','Overgeslagen'],['wait','Wachten'],['all','Alles']];
+  const fc = {open:0, check:0, approved:0, changed:0, skipped:0, wait:0, all:ITEMS.length};
+  ITEMS.forEach(it => { const st = decOf(it).state; if (!it.ev.to) fc.wait++; else { fc[st]++; if (st === 'open' && it.ev.check) fc.check++; } });
+  $('filters').innerHTML = F.map(([k, l]) => `<button class="btn sm ${VIEW.filter === k ? 'on' : ''}" data-filter="${k}">${l} <span class="muted">${fc[k]}</span></button>`).join('') +
+    (fc.open ? `<span style="flex:1"></span><button class="btn sm" id="approveSafe" title="Keur alle open voorstellen goed waarvoor geen controle nodig is en die de KPI niet verlagen of shops uit de KPI halen">Akkoord op alle eenvoudige (${ITEMS.filter(safeItem).length})</button>` : '');
+
+  const list = ITEMS.filter(it => {
+    if (VIEW.node && it.ev.rule !== VIEW.node) return false;
+    const st = decOf(it).state;
+    if (VIEW.filter === 'all') return true;
+    if (VIEW.filter === 'wait') return !it.ev.to;
+    if (!it.ev.to) return false;
+    if (VIEW.filter === 'check') return st === 'open' && !!it.ev.check;
+    return st === VIEW.filter;
+  });
+  $('cards').innerHTML = list.length ? list.map(card).join('') : `<div class="empty">${VIEW.filter === 'open' && !VIEW.node ? 'Alles beoordeeld. Ga naar stap 3 om door te voeren.' : 'Geen shops in deze selectie.'}</div>`;
+}
+
+function safeItem(it){
+  if (decOf(it).state !== 'open' || !it.ev.to || it.ev.check) return false;
+  const k = itemKpi(it, it.ev.to);
+  if (k && (k.dir === 'uit' || k.pp < 0)) return false;
+  if (it.ev.flags && it.ev.flags.some(f => f.c === 'warn')) return false;
+  return ['N2','N8','H4','H7','H9'].includes(it.ev.rule);
+}
+
+function card(it){
+  const {shop, m, ev} = it, d = decOf(it), to = finalTo(it), open = VIEW.open[it.id];
+  const k = itemKpi(it, to);
+  const applied = S.applied[it.id];
+  const cls = applied ? 'done' : d.state;
+  const jira = jiraFor(it, to);
+  const flags = [...(ev.flags || [])];
+  if (ev.check && d.state === 'open') flags.unshift({t:'controle nodig', c:'warn'});
+  if (k && k.dir === 'uit' && Math.abs(k.pp) > 0.1) flags.unshift({t:'4-ogen: grote KPI-impact', c:'bad'});
+  if (shop.jira) flags.push({t:`${shop.jira.key}${shop.jira.closed ? ' (gesloten)' : ''}`, c:'acc'});
+  if (shop.aff) flags.push({t:'affiliate', c:''});
+  const metricsHtml = [
+    `<span><b>${m.priced}</b> prijzen</span>`,
+    `<span>fetch <b>${pct(m.fetch, 0)}</b></span>`,
+    m.rate != null ? `<span>prijs excl. timing <b>${pct(m.rate)}</b></span>` : '',
+    m.inv ? `<span>voorraad-afwijking <b>${pct(m.invShare, 0)}</b></span>` : '',
+    shop.clicks ? `<span>klikaandeel <b>${String(shop.clicks).replace('.', ',')}%</b></span>` : ''
+  ].join('');
+  const kpiHtml = k ? `<span class="chip ${k.dir === 'uit' ? 'warn' : 'ok'}" title="${k.ok}/${k.fetched} opgehaalde producten op ${nlDate(kpiDay())}">KPI ${k.dir === 'uit' ? 'uit' : 'in'}: ${k.pp > 0 ? '+' : '−'}${Math.abs(k.pp).toFixed(2).replace('.', ',')} pp</span>` : '';
+  const jiraHtml = jira ? `<span class="chip acc">Jira: ${({nieuw:'nieuw ticket', vervolg:'vervolgticket op ' + jira.key, comment:'comment op ' + jira.key, opgelost:'opgelost-comment op ' + jira.key})[jira.action]}</span>` : '';
+  let acts = '';
+  if (applied) acts = `<span class="chip ok">doorgevoerd ${esc(applied.at ? new Date(applied.at).toLocaleDateString('nl-NL') : '')}</span>`;
+  else if (!ev.to) acts = `<span class="chip">wachten op meer data</span>`;
+  else {
+    const needCheck = ev.check && !d.checked, needFour = k && k.dir === 'uit' && Math.abs(k.pp) > 0.1 && !d.four;
+    const blocked = needCheck || needFour;
+    acts = d.state === 'open'
+      ? `<button class="btn sm ok" data-act="approve" ${blocked ? 'disabled title="Doe eerst de controle hieronder"' : ''}>Akkoord</button><button class="btn sm" data-act="toggle">${open ? 'Sluiten' : blocked ? 'Controleren' : 'Details'}</button><button class="btn sm" data-act="skip">Overslaan</button>`
+      : `<span class="chip ${d.state === 'skipped' ? '' : 'ok'}">${({approved:'akkoord', changed:'aangepast', skipped:'overgeslagen'})[d.state]}</span><button class="btn sm" data-act="undo">Terug</button><button class="btn sm" data-act="toggle">${open ? 'Sluiten' : 'Details'}</button>`;
+  }
+  return `<article class="card ${cls}" data-id="${it.id}">
+    <div class="chead"><div>
+      <div class="cname">${esc(shop.name)} <span class="mono">${it.id}</span></div>
+      <div class="trans">${stPill(shop.status)} → ${stPill(to)} <span class="chip acc" title="${esc(RULES[ev.rule].d)}">${ev.rule} · ${esc(RULES[ev.rule].t)}</span> ${kpiHtml} ${jiraHtml}</div>
+      <div class="reason">${esc((ev.why.filter(w => w.c === 'hit').pop() || {}).t || '')}${ev.hint ? ` · <i>${esc(ev.hint)}</i>` : ''}</div>
+      <div class="metrics">${metricsHtml}</div>
+      ${flags.length ? `<div class="flags">${flags.map(f => `<span class="chip ${f.c}">${esc(f.t)}</span>`).join('')}</div>` : ''}
+    </div><div class="acts">${acts}</div></div>
+    ${open ? cardBody(it) : ''}
+  </article>`;
+}
+
+function cardBody(it){
+  const {shop, m, ev} = it, d = decOf(it), to = finalTo(it), k = itemKpi(it, to);
+  const suc = `${SUC_URL}?shop=${it.id}`;
+  const why = `<ul class="why">${ev.why.map(w => `<li class="${w.c}">${esc(w.t)}</li>`).join('')}</ul>`;
+  const editable = !S.applied[it.id] && ev.to;
+  let check = '';
+  if (ev.check) check += `<div class="check"><b>Controle:</b> ${esc(ev.check)}<label><input type="checkbox" data-act="checked" ${d.checked ? 'checked' : ''}> Ik heb dit gecontroleerd</label></div>`;
+  if (k && k.dir === 'uit' && Math.abs(k.pp) > 0.1) check += `<div class="check"><b>4-ogen:</b> dit haalt ${k.fetched} opgehaalde producten uit de KPI (${(k.pp > 0 ? '+' : '−') + Math.abs(k.pp).toFixed(2).replace('.', ',')} pp). Laat een collega meekijken en zet de reden in de note.<label><input type="checkbox" data-act="four" ${d.four ? 'checked' : ''}> Een collega heeft meegekeken</label></div>`;
+  const edit = editable ? `<div class="edit">
+      <label for="to_${it.id}">Status</label>
+      <select id="to_${it.id}" data-act="to">${STATUSES.filter(s => s !== '(not set yet)').map(s => `<option ${s === to ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+      <label for="note_${it.id}">Note</label>
+      <input type="text" id="note_${it.id}" data-act="note" value="${esc(finalNote(it))}" ${d.keepNote ? 'disabled' : ''}>
+      <span></span><label class="small"><input type="checkbox" data-act="keep" ${d.keepNote ? 'checked' : ''}> Huidige note in SUC laten staan${shop.note ? `: <i>${esc(shop.note.slice(0, 120))}</i>` : ''}</label>
+    </div>` : '';
+  const rows = m.pairs.slice().sort((a, b) => ['echt','afronding','verdacht','timing'].indexOf(a.k) - ['echt','afronding','verdacht','timing'].indexOf(b.k));
+  const showAll = VIEW.open[it.id] === 'all';
+  const tbl = rows.length ? `<div><h3>Prijsafwijkingen (${rows.length}) <span class="small muted">· klik de prijs om de pagina van de shop te openen</span></h3><div class="tbl"><table>
+      <thead><tr><th>Dag</th><th>Product</th><th class="n">Beslist</th><th class="n">Site (Dataedis)</th><th class="n">Verschil</th><th>Soort</th></tr></thead><tbody>
+      ${(showAll ? rows : rows.slice(0, 8)).map(p => `<tr><td>${ddmm(p.day)}</td><td><span class="mono">${esc(p.ext || p.pid)}</span>${p.notFound ? ' <span class="chip warn">niet meer in feed</span>' : ''}</td>
+        <td class="n">${eur(p.bes)}</td><td class="n">${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${eur(p.shop)}</a>` : eur(p.shop)}</td>
+        <td class="n">${p.bes ? ((p.shop - p.bes) / p.bes * 100).toFixed(1).replace('.', ',') + '%' : '–'}</td><td class="k-${p.k}">${p.k}</td></tr>`).join('')}
+      </tbody></table></div>${rows.length > 8 ? `<button class="lnk small" data-act="all">${showAll ? 'minder tonen' : `alle ${rows.length} tonen`}</button>` : ''}</div>` : '';
+  const same = (ev.sameUrl || []).length ? `<div><h3>Gedeelde URL's</h3><ul class="small">${ev.sameUrl.slice(0, 4).map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url.slice(0, 90))}</a> · ${s.exts.length} producten (${esc(s.exts.slice(0, 4).join(', '))})</li>`).join('')}</ul></div>` : '';
+  const perDay = `<div class="small muted">Per dag: ${m.perDay.map(p => `${ddmm(p.d)}: ${p.ok} OK / ${p.mm} prijs / ${p.inv} voorraad van ${p.n}`).join(' · ')}</div>`;
+  const jira = jiraFor(it, to);
+  const tp = to === 'Shop Issue' ? ticketPlan(shop, m, 'Shop Issue') : null;
+  const jiraNote = jira ? `<div class="msg info small"><b>Jira:</b> ${({nieuw:'nieuw CMDASH-ticket', vervolg:`vervolgticket op ${jira.key} (gesloten)`, comment:`comment op het open ticket ${jira.key}`, opgelost:`laat in ${jira.key} weten dat het is opgelost`})[jira.action]}${jira.pat && jira.pat.text ? ` · patroon: ${esc(jira.pat.text)}${jira.pat.prio ? ` (prioriteit ${jira.pat.prio})` : ''}` : ''}. De tekst staat klaar in stap 3.</div>`
+    : tp && tp.action === 'geen' ? `<div class="msg info small"><b>Geen ticket:</b> ${esc(tp.reasons.join('; '))}.</div>` : '';
+  return `<div class="cbody">
+    <div><h3 style="margin-top:0">Waarom dit voorstel</h3>${why}</div>
+    ${check}${jiraNote}${edit}${tbl}${same}${perDay}
+    <div class="row small"><a href="${suc}" target="_blank" rel="noopener">Open in SUC Report ↗</a>${shop.jira ? `<a href="https://beslist.atlassian.net/browse/${esc(shop.jira.key)}" target="_blank" rel="noopener">${esc(shop.jira.key)} ↗</a>` : ''}${shop.reviewer ? `<span class="muted">laatste review: ${esc(shop.reviewer)}, ${esc(shop.lastReviewed)}</span>` : ''}</div>
+  </div>`;
+}
+
+function ticketText(it, j){
+  const {shop} = it, name = S.settings.name || '<jouw naam>';
+  const ex = (j.ex || []).map(p => `- ${p.url}\n  Price beslist: ${eur(p.bes)}  ·  Price shop: ${eur(p.shop)}`).join('\n');
+  if (j.action === 'comment') return `${ddmm(S.data.today)}: SUC-hercontrole. Prijs ${pct(it.m.rate)} op ${it.m.priced} prijzen (${nlDate(S.data.days[0])} – ${nlDate(S.data.days[S.data.days.length - 1])}). Nieuwe voorbeelden:\n${ex}`;
+  if (j.action === 'opgelost') return `${ddmm(S.data.today)}: SUC-hercontrole. De prijzen kloppen weer: ${pct(it.m.rate)} op ${it.m.priced} prijzen. Wat ons betreft opgelost; het ticket sluiten laten we aan CM.`;
+  return `Titel: SUC: Verkeerde prijzen in de feed – ${shop.name} (${shop.id})
+
+De prijzen in de feed komen niet overeen met de prijzen op de website van de shop.${j.action === 'vervolg' ? `\nVervolg op ${j.key}.` : ''}
+${j.pat && j.pat.text ? `\n${j.pat.text}.\n` : ''}
+SUC-rapport: ${SUC_URL}?shop=${shop.id}
+
+Voorbeelden:
+${ex}
+
+Neem contact op met ${name} voor vragen.`;
+}
+
+function renderApply(){
+  const act = ITEMS.filter(it => isActive(it) && finalTo(it));
+  const todo = act.filter(it => !S.applied[it.id]);
+  const done = act.filter(it => S.applied[it.id]);
+  const changes = todo.filter(needsChange);
+  $('applyPanel').innerHTML = `<h2>Statuswijzigingen</h2>
+    ${changes.length ? `<div class="tbl"><table><thead><tr><th>Shop</th><th>Van → naar</th><th>Note</th><th>KPI</th></tr></thead><tbody>
+    ${changes.map(it => { const k = itemKpi(it); return `<tr><td>${esc(it.shop.name)} <span class="mono muted">${it.id}</span></td><td>${stPill(it.shop.status)} → ${stPill(finalTo(it))}</td><td class="small">${decOf(it).keepNote ? '<i class="muted">huidige note blijft</i>' : esc(finalNote(it))}</td><td class="small">${k ? `${k.dir} ${(k.pp > 0 ? '+' : '−') + Math.abs(k.pp).toFixed(2).replace('.', ',')} pp` : '–'}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" id="btnSend">Stuur naar SUC (${changes.length})</button><button class="btn" id="btnCopyJob">Kopieer opdracht</button>
+    <span class="small muted" id="sendState">${sucWin && !sucWin.closed ? (collectorReady ? 'SUC-paneel staat klaar.' : 'Klik in de SUC Report op de bladwijzer als het paneel nog niet open is.') : 'De SUC Report opent in een nieuw tabblad; klik daar op de bladwijzer.'}</span></div>
+    <div class="row small" style="margin-top:10px"><label>Jouw naam (voor tickets): <input type="text" id="myName" value="${esc(S.settings.name)}" placeholder="voornaam" style="width:160px"></label></div>`
+    : `<p class="muted">Nog niets om door te voeren. Geef in stap 2 akkoord op voorstellen.</p>`}
+    ${done.length ? `<h3>Al doorgevoerd (${done.length})</h3><p class="small muted">${done.map(it => esc(it.shop.name) + ' → ' + esc(S.applied[it.id].to)).join(' · ')}</p>` : ''}
+    <div id="applyMsg"></div>
+    <h3>Resultaat terugzetten</h3><p class="small muted">Kwam het resultaat niet vanzelf terug? Klik in het SUC-paneel op <i>Kopieer resultaat</i> en plak hier.</p>
+    <textarea id="pasteResult" rows="2" placeholder="Plak resultaat…"></textarea>`;
+
+  const tix = act.map(it => ({it, j: jiraFor(it)})).filter(x => x.j);
+  $('jiraPanel').innerHTML = `<h2>Jira-tickets en comments</h2>
+    ${tix.length ? `<p class="small">Maak nieuwe tickets bij voorkeur via <b>Create Jira ticket</b> in SUC: dan staat de Jira-badge goed. In het SUC-paneel zet <i>Voorbereiden</i> de shop open met subject <i>Verkeerde prijzen in de feed</i> en de voorbeelden aangevinkt; aanmaken doe je zelf. De tekst hieronder is voor controle of voor een comment.</p>
+    ${tix.map(({it, j}) => `<div style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${esc(it.shop.name)} <span class="mono muted">${it.id}</span></b>
+      <span><span class="chip acc">${({nieuw:'nieuw ticket', vervolg:'vervolg op ' + j.key, comment:'comment op ' + j.key, opgelost:'opgelost-comment op ' + j.key})[j.action]}</span>${j.pat && j.pat.prio ? ` <span class="chip">prioriteit ${j.pat.prio}</span>` : ''}
+      <button class="btn sm" data-copy="${it.id}">Kopieer tekst</button></span></div>
+      <pre class="ticket">${esc(ticketText(it, j))}</pre></div>`).join('')}`
+    : `<p class="muted">Geen tickets of comments nodig bij de huidige besluiten.</p>`}`;
+}
+
+function buildJob(){
+  const act = ITEMS.filter(it => isActive(it) && finalTo(it) && !S.applied[it.id]);
+  const changes = act.filter(needsChange).map(it => ({
+    id: it.id, name: it.shop.name, from: it.shop.status, to: finalTo(it), note: decOf(it).keepNote ? '' : finalNote(it), keepNote: !!decOf(it).keepNote}));
+  const tickets = act.map(it => ({it, j: jiraFor(it)})).filter(x => x.j && (x.j.action === 'nieuw' || x.j.action === 'vervolg')).map(({it, j}) => ({
+    id: it.id, name: it.shop.name, day: (j.ex[0] || {}).day, pids: j.ex.filter(p => p.day === (j.ex[0] || {}).day).map(p => p.pid)}));
+  return {kind:'suc-job', v: APP_VERSION, by: S.settings.name || 'de app', createdAt: new Date().toISOString(), changes, tickets};
+}
+
+/* ================================================================
+   DATA IN / UIT
+   ================================================================ */
+function acceptData(d, how){
+  if (!d || d.kind !== 'suc-data' || !d.shops || !d.days) { toast('Dit is geen SUC-data.'); return; }
+  const same = S.data && S.data.collectedAt === d.collectedAt;
+  if (!same){ S.dec = {}; S.applied = {}; }
+  S.data = d; save(); buildItems();
+  const v = d.v && d.v !== APP_VERSION && !d.demo ? `<div class="msg warn">Let op: de bladwijzer is versie ${esc(d.v)}, de app ${APP_VERSION}. Sleep de bladwijzer opnieuw.</div>` : '';
+  $('recvMsg').innerHTML = `<div class="msg ok">${how}: ${Object.keys(d.shops).length} shops, ${ITEMS.length} voorstel(len).</div>${v}`;
+  VIEW.filter = 'open'; VIEW.node = null; VIEW.open = {};
+  setStep(2);
+}
+function acceptApplied(r){
+  if (!r || r.kind !== 'suc-applied') return;
+  if (r.dry){ toast('Proef ontvangen: er is niets opgeslagen.'); showApplyMsg(r); return; }
+  (r.results || []).forEach(x => { if (x.ok && !x.dry) S.applied[x.id] = {to: x.to, at: r.at}; });
+  save(); render(); showApplyMsg(r);
+}
+function showApplyMsg(r){
+  const el = $('applyMsg'); if (!el) return;
+  const ok = r.results.filter(x => x.ok), bad = r.results.filter(x => !x.ok && !x.skipped);
+  el.innerHTML = `<div class="msg ${bad.length ? 'warn' : 'ok'}">${r.dry ? 'Proef' : 'Doorgevoerd'}: ${ok.length} gelukt${bad.length ? `, ${bad.length} niet: ${bad.map(x => esc(x.id + ' (' + x.msg + ')')).join('; ')}` : ''}.</div>`;
+}
+
+window.addEventListener('message', e => {
+  const d = e.data; if (!d || typeof d !== 'object') return;
+  if (d.kind === 'suc-hello'){ collectorReady = true; const s = $('sendState'); if (s) s.textContent = 'SUC-paneel staat klaar.'; }
+  if (d.kind === 'suc-data') acceptData(d, 'Ontvangen uit de SUC Report');
+  if (d.kind === 'suc-applied') acceptApplied(d);
+});
+
+/* ---------- voorbeelddata (fictief) ---------- */
+function demoData(){
+  const today = new Date().toISOString().slice(0, 10);
+  const add = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const days = [add(today, -3), add(today, -2), add(today, -1)];
+  const dmy = n => { const d = add(today, -n); const [y, m, dd] = d.split('-'); return `${dd}-${m}-${y}`; };
+  let seq = 0;
+  const row = (shop, bes, o = {}) => ({pid: 'demo' + (++seq), ext: o.ext || 'SKU' + (1000 + seq), cat: 'Voorbeeld', url: o.url || `https://www.voorbeeld.nl/p/${seq}`, shop, bes, at: '', msg: o.msg || 'Price MISMATCH', timing: !!o.timing, notFound: false, feed: o.feed ?? null});
+  const mk = (id, name, status, perDay, extra = {}) => ({id, name, status, aff: !!extra.aff, clicks: extra.clicks || 0.1, lastReviewed: extra.lr || '', wl: false, jira: extra.jira || null, note: extra.note || '', reviewer: extra.rev || '', same: extra.same,
+    days: Object.fromEntries(days.map((d, i) => [d, {...perDay[i], errs: perDay[i].errs || {}}]))});
+  const D = (ok, mm, inv, n, rows, errs) => ({ok, mm, inv, n, rows, errs});
+  const shops = [
+    mk('900001', 'Oefenshop Fietsen', '(not set yet)', [D(0,0,0,95,[], {'Http error: Beslist Proxy status code not 200: 403':95}), D(1,0,0,96,[], {'Http error: Beslist Proxy status code not 200: 403':95}), D(0,0,0,94,[], {'Http error: Beslist Proxy status code not 200: 403':94})]),
+    mk('900002', 'Oefenshop Mode (affiliate)', '(not set yet)', [D(60,8,2,90,[]), D(58,9,1,92,[]), D(61,7,3,91,[])], {aff:true, clicks:0.9}),
+    mk('900003', 'Oefenshop Wonen', '(not set yet)', [D(30,1,0,40,[row(129.95,119.95)]), D(28,0,1,38,[]), D(31,1,0,42,[row(49.99,49.95)])], {clicks:0.4}),
+    mk('900004', 'Oefenshop Tuin', '(not set yet)', [D(4,0,80,90,[]), D(3,1,82,92,[row(24.95,19.95)]), D(5,0,79,91,[])], {clicks:0.3}),
+    mk('900005', 'Oefenshop Wijn', '(not set yet)', [D(60,12,0,90, Array.from({length:12}, (_, i) => row(7.95 + i, (7.95 + i) * 6))), D(58,13,0,92, Array.from({length:13}, (_, i) => row(8.5 + i, (8.5 + i) * 6))), D(61,11,0,90, Array.from({length:11}, (_, i) => row(9.95 + i, (9.95 + i) * 6)))], {clicks:0.2}),
+    mk('900006', 'Oefenshop Klus', '(not set yet)', [D(40,8,1,60,[row(59.95,49.95),row(129,99),row(24.5,19.95),row(89,79),row(15,12.5),row(44.95,39.95),row(210,189),row(9.99,9.98)]), D(42,7,0,60,[row(59.95,49.95),row(139,119),row(33,29.95),row(18.5,15),row(99,89),row(64,59),row(12.99,12.98)]), D(38,9,1,58,[row(59.95,49.95),row(75,65),row(27,22),row(48,39),row(130,115),row(11,9.5),row(36,30),row(199,179),row(5.49,5.48)])], {clicks:0.7}),
+    mk('900007', 'Oefenshop Sport', '(not set yet)', [D(1,0,0,1,[]), D(0,0,0,0,[]), D(1,0,0,1,[])]),
+    mk('900008', 'Oefenshop Schoenen', '(not set yet)', [D(50,4,0,60,[row(89.95,79.95,{url:'https://www.voorbeeld.nl/schoen-a'})]), D(52,3,0,60,[]), D(49,5,0,60,[])], {clicks:0.5, same:[{url:'https://www.voorbeeld.nl/schoen-a', exts:['SCH-38','SCH-39','SCH-40'], day: days[0]}]}),
+    mk('900009', 'Oefenshop Thee', '(not set yet)', [D(20,3,0,25,[row(12.95,14.95,{timing:true}),row(9.95,11.5,{timing:true}),row(6.5,7.95,{timing:true})]), D(21,2,0,25,[row(12.95,14.95,{timing:true}),row(4.95,5.95,{timing:true})]), D(19,3,0,24,[row(12.95,14.95,{timing:true}),row(22,25,{timing:true}),row(8,9.5,{timing:true})])], {clicks:0.1}),
+    mk('900010', 'Oefenshop Beauty', 'OK', [D(30,10,0,45,Array.from({length:10}, (_, i) => row(20 + i, 24 + i))), D(29,11,0,45,Array.from({length:11}, (_, i) => row(30 + i, 36 + i))), D(31,9,0,44,Array.from({length:9}, (_, i) => row(15 + i, 18 + i)))], {clicks:0.8, lr: dmy(120), jira:{key:'CMDASH-100001', closed:true}}),
+    mk('900011', 'Oefenshop Elektro', 'Dataedis Issue', [D(70,1,1,75,[row(499,499.5)]), D(72,0,0,75,[]), D(71,2,0,74,[row(299,289),row(59,59.05)])], {clicks:1.6, lr: dmy(150), note:'0% fetch, gemeld bij Dataedis', rev:'collega'}),
+    mk('900012', 'Oefenshop Baby', 'Shop Issue', [D(40,1,0,42,[row(19.95,19.99)]), D(41,0,0,42,[]), D(39,1,1,42,[row(34.95,34.99)])], {clicks:0.35, lr: dmy(20), jira:{key:'CMDASH-100002', closed:false}}),
+    mk('900013', 'Oefenshop Groot', 'OK', [D(800,30,10,900,null), D(790,35,12,900,null), D(810,28,9,900,null)], {clicks:3.2, lr: dmy(40)})
+  ];
+  const sum = d => shops.filter(s => !s.aff && !OUT_OF_KPI(s.status)).reduce((a, s) => { const c = s.days[d]; a.num += c.ok; a.den += c.ok + c.mm + c.inv; return a; }, {num:0, den:0});
+  return {kind:'suc-data', v: APP_VERSION, demo: true, collectedAt: new Date().toISOString(), today, days, scope:'all',
+    kpi: Object.fromEntries(days.map(d => [d, sum(d)])), shops: Object.fromEntries(shops.map(s => [s.id, s]))};
+}
+
+/* ================================================================
+   EVENTS
+   ================================================================ */
+function bookmarkletSrc(){ return '(' + sucCollector.toString().replace('__APP_VERSION__', APP_VERSION) + ')();'; }
+function init(){
+  load();
+  $('bookmarklet').href = 'javascript:' + encodeURIComponent(bookmarkletSrc());
+  $('bookmarklet').addEventListener('click', e => { e.preventDefault(); toast('Sleep deze knop naar je bladwijzerbalk, en klik er daarna op in de SUC Report.'); });
+  $('bmVer').textContent = 'bladwijzer v' + APP_VERSION;
+  $('rulesList').innerHTML = [['Nieuw', NEW_ORDER], ['Hercontrole', HER_ORDER]].map(([t, rs]) =>
+    `<h3>${t}</h3><ul>${rs.map(r => `<li><b class="mono">${r}</b> ${esc(RULES[r].t)}: <span class="muted">${esc(RULES[r].d)}</span></li>`).join('')}</ul>`).join('');
+  $('copyConsole').onclick = async () => toast(await copyText(bookmarkletSrc()) ? 'Code gekopieerd. Plak in de console (F12) van de SUC Report.' : 'Kopiëren mislukt.');
+  $('btnOpenSuc').onclick = () => { sucWin = window.open(SUC_URL, 'suc-report'); collectorReady = false; };
+  $('btnLoadPaste').onclick = () => { try { acceptData(JSON.parse($('pasteData').value), 'Geplakt'); } catch (e) { toast('Dat lijkt geen geldige SUC-data.'); } };
+  $('pasteData').addEventListener('paste', () => setTimeout(() => { try { const d = JSON.parse($('pasteData').value); if (d.kind === 'suc-data') acceptData(d, 'Geplakt'); } catch (e) {} }, 50));
+  $('btnDemo').onclick = () => acceptData(demoData(), 'Voorbeelddata geladen');
+  document.querySelectorAll('.steps button').forEach(b => b.onclick = () => setStep(+b.dataset.step));
+  $('btnUitleg').onclick = () => $('drawer').classList.remove('hidden');
+  $('closeDrawer').onclick = () => $('drawer').classList.add('hidden');
+  $('drawer').onclick = e => { if (e.target === $('drawer')) $('drawer').classList.add('hidden'); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('drawer').classList.add('hidden'); });
+
+  $('step2').addEventListener('mouseover', e => { const n = e.target.closest('[data-node]'); if (n) $('treeHint').textContent = `${n.dataset.node} · ${RULES[n.dataset.node].d}`; });
+  $('step2').addEventListener('mouseout', e => { if (e.target.closest('[data-node]')) $('treeHint').textContent = VIEW.node ? `${VIEW.node} · ${RULES[VIEW.node].d}` : 'Tip: beweeg over een stap voor de uitleg.'; });
+  $('step2').addEventListener('click', e => {
+    const n = e.target.closest('[data-node]'); if (n){ VIEW.node = VIEW.node === n.dataset.node ? null : n.dataset.node; if (VIEW.node) VIEW.filter = 'all'; render(); return; }
+    const f = e.target.closest('[data-filter]'); if (f){ VIEW.filter = f.dataset.filter; render(); return; }
+    if (e.target.id === 'approveSafe'){ ITEMS.filter(safeItem).forEach(it => S.dec[it.id] = {...decOf(it), state:'approved'}); save(); render(); toast('Eenvoudige voorstellen goedgekeurd.'); return; }
+    const a = e.target.closest('[data-act]'); if (!a) return;
+    const cardEl = a.closest('[data-id]'); const id = cardEl && cardEl.dataset.id; const it = ITEMS.find(x => x.id === id); if (!it) return;
+    const d = S.dec[id] = {...decOf(it)};
+    switch (a.dataset.act){
+      case 'approve': d.state = d.to && d.to !== it.ev.to ? 'changed' : 'approved'; VIEW.open[id] = false; break;
+      case 'skip': d.state = 'skipped'; VIEW.open[id] = false; break;
+      case 'undo': d.state = 'open'; break;
+      case 'toggle': VIEW.open[id] = !VIEW.open[id]; break;
+      case 'all': VIEW.open[id] = VIEW.open[id] === 'all' ? true : 'all'; break;
+      case 'checked': d.checked = a.checked; break;
+      case 'four': d.four = a.checked; break;
+      case 'keep': d.keepNote = a.checked; break;
+      default: return;
+    }
+    save(); render();
+  });
+  $('step2').addEventListener('change', e => {
+    const a = e.target.closest('[data-act]'); if (!a) return;
+    const id = a.closest('[data-id]').dataset.id, it = ITEMS.find(x => x.id === id); const d = S.dec[id] = {...decOf(it)};
+    if (a.dataset.act === 'to'){ d.to = a.value === it.ev.to ? null : a.value; if (d.state !== 'open') d.state = d.to ? 'changed' : 'approved'; save(); render(); }
+    if (a.dataset.act === 'note'){ d.note = a.value; save(); }
+  });
+  $('step3').addEventListener('click', async e => {
+    if (e.target.id === 'btnSend'){
+      const job = buildJob();
+      await copyText(JSON.stringify(job));
+      if (!sucWin || sucWin.closed){ sucWin = window.open(SUC_URL, 'suc-report'); collectorReady = false; }
+      try { sucWin.postMessage(job, '*'); } catch (_) {}
+      $('sendState').textContent = collectorReady ? 'Verstuurd. Controleer de lijst in het SUC-paneel en klik daar op Doorvoeren.' : 'Opdracht staat ook op je klembord. Open het SUC-paneel (bladwijzer) en plak hem daar als hij niet vanzelf verschijnt.';
+      const iv = setInterval(() => { if (collectorReady && sucWin && !sucWin.closed){ try { sucWin.postMessage(job, '*'); } catch (_) {} clearInterval(iv); } }, 1500);
+      setTimeout(() => clearInterval(iv), 120000);
+    }
+    if (e.target.id === 'btnCopyJob') toast(await copyText(JSON.stringify(buildJob())) ? 'Opdracht gekopieerd. Plak in het SUC-paneel.' : 'Kopiëren mislukt.');
+    const c = e.target.closest('[data-copy]');
+    if (c){ const it = ITEMS.find(x => x.id === c.dataset.copy); toast(await copyText(ticketText(it, jiraFor(it))) ? 'Tekst gekopieerd.' : 'Kopiëren mislukt.'); }
+  });
+  $('step3').addEventListener('input', e => {
+    if (e.target.id === 'myName'){ S.settings.name = e.target.value; save(); }
+    if (e.target.id === 'pasteResult'){ try { acceptApplied(JSON.parse(e.target.value)); e.target.value = ''; } catch (_) {} }
+  });
+  $('step3').addEventListener('change', e => { if (e.target.id === 'myName') renderApply(); });
+
+  if (S.data){ buildItems(); $('recvMsg').innerHTML = `<div class="msg info">Vorige sessie hersteld. Haal nieuwe data op voor een actuele stand.</div>`; setStep(2); }
+  else render();
+}
+init();
+</script>
+</body>
+</html>
